@@ -41,7 +41,7 @@ const initialRutinas = [
     { id: 3, nombre: 'Fuerza Piernas', duracionMin: 50, nivel: 'Avanzado', descripcion: 'Enfocada en cuádriceps, glúteos y femorales.' },
     { id: 5, nombre: 'Crossfit', duracionMin: 60, nivel: 'Avanzado', descripcion: 'Enfocada en cardio, fuerza y resistencia.' },
     { id: 6, nombre: 'Full Body / Upper-Lower (4 días)', duracionMin: 60, nivel: 'Avanzado', descripcion: 'Enfocada en cardio, fuerza y resistencia.' },
-    { id: 7, nombre: 'Rutina para Hipertrofia (5 días / Bosu dividido)', duracionMin: 60, nivel: 'Intermedio', descripcion: 'Ideal para ganar masa muscular estética.' }
+    { id: 7, nombre: 'Rutina para Hipertrofia (5 días / Bosu dividido)', duracionMin: 60, nivel: 'Intermedio', descripcion: 'Ideal para ganar masa muscular estética.' },
 ]
 
 export default function RutinasTab() {

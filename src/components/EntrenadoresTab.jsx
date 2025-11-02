@@ -211,23 +211,23 @@ export default function EntrenadoresTab() {
                                 </Td>
                                 <Td>
                                     <HStack>
-                                        <IconButton 
-                                            aria-label="Editar" 
-                                            icon={<FiEdit />} 
-                                            size="sm" 
-                                            variant="ghost" 
+                                        <IconButton
+                                            aria-label="Editar"
+                                            icon={<FiEdit />}
+                                            size="sm"
+                                            variant="ghost"
                                             color="green.500"
                                             _hover={{ bg: "green.50", color: "green.600" }}
-                                            onClick={() => handleEditar(e)} 
+                                            onClick={() => handleEditar(e)}
                                         />
-                                        <IconButton 
-                                            aria-label="Eliminar" 
-                                            icon={<FiTrash2 />} 
-                                            size="sm" 
-                                            variant="ghost" 
+                                        <IconButton
+                                            aria-label="Eliminar"
+                                            icon={<FiTrash2 />}
+                                            size="sm"
+                                            variant="ghost"
                                             color="red.500"
                                             _hover={{ bg: "red.50", color: "red.600" }}
-                                            onClick={() => handleEliminar(e.id)} 
+                                            onClick={() => handleEliminar(e.id)}
                                         />
                                     </HStack>
                                 </Td>
@@ -261,7 +261,7 @@ export default function EntrenadoresTab() {
                                     <option>Fuerza</option>
                                     <option>Cardio</option>
                                     <option>CrossFit</option>
-                                    <option>Subir Masa muscular</option> 
+                                    <option>Subir Masa muscular</option>
                                     <option>Bajar de peso</option>
                                 </Select>
                             </FormControl>
