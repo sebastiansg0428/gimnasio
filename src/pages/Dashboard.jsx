@@ -27,9 +27,10 @@ import ClientesTab from '../components/ClientesTab'
 import RutinasTab from '../components/RutinasTab'
 import PagosTab from '../components/PagosTab'
 import EstadisticasTab from '../components/EstadisticasTab'
+import PerfilTab from '../components/PerfilTab'
 import { useNavigate } from 'react-router-dom'
 import { logout, getCurrentUser } from '../utils/auth'
-import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell } from 'react-icons/fi'
+import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser } from 'react-icons/fi'
 import { useState } from 'react'
 
 // Datos de ejemplo
@@ -169,7 +170,13 @@ export default function Dashboard() {
                             {user?.name}
                         </MenuButton>
                         <MenuList>
-                            <MenuItem color="gray.700" _hover={{ bg: 'gray.50' }}>Perfil</MenuItem>
+                            <MenuItem 
+                                color="gray.700" 
+                                _hover={{ bg: 'gray.50' }}
+                                onClick={() => setCurrentTab('perfil')}
+                            >
+                                Perfil
+                            </MenuItem>
                             <MenuItem color="gray.700" _hover={{ bg: 'gray.50' }}>Configuración</MenuItem>
                             <Divider />
                             <MenuItem 
@@ -259,6 +266,18 @@ export default function Dashboard() {
                     >
                         Estadísticas
                     </Button>
+                    <Button
+                        leftIcon={<FiUser />}
+                        w="full"
+                        justifyContent="start"
+                        variant={currentTab === 'perfil' ? 'solid' : 'ghost'}
+                        colorScheme={currentTab === 'perfil' ? 'green' : 'gray'}
+                        onClick={() => setCurrentTab('perfil')}
+                        _hover={{ bg: currentTab === 'perfil' ? 'green.500' : 'gray.100', transform: 'translateX(4px)' }}
+                        transition="all 0.2s"
+                    >
+                        Perfil
+                    </Button>
                 </VStack>
 
                 {/* Main Content */}
@@ -268,6 +287,7 @@ export default function Dashboard() {
                     {currentTab === 'rutinas' && <RutinasTab />}
                     {currentTab === 'pagos' && <PagosTab />}
                     {currentTab === 'estadisticas' && <EstadisticasTab />}
+                    {currentTab === 'perfil' && <PerfilTab />}
                 </Box>
             </Flex>
         </Box>

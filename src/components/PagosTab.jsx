@@ -28,12 +28,13 @@ import {
     NumberInputField,
     InputGroup,
     InputLeftElement,
+    InputRightElement,
     Menu,
     MenuButton,
     MenuList,
     MenuItem,
 } from '@chakra-ui/react'
-import { FiPlus, FiSearch, FiEye, FiTrash2, FiCheck } from 'react-icons/fi'
+import { FiPlus, FiSearch, FiEye, FiTrash2, FiCheck, FiX } from 'react-icons/fi'
 import { useState, useEffect } from 'react'
 
 // Datos de ejemplo de pagos
@@ -54,6 +55,7 @@ export default function PagosTab() {
         }
     })
     const [busqueda, setBusqueda] = useState('')
+    const [inputValue, setInputValue] = useState('')
     const [filtroEstado, setFiltroEstado] = useState('todos')
     const [selected, setSelected] = useState(null)
     const { isOpen, onOpen, onClose } = useDisclosure()
@@ -66,6 +68,13 @@ export default function PagosTab() {
             // ignore
         }
     }, [pagos])
+
+    useEffect(() => {
+        const t = setTimeout(() => {
+            setBusqueda(inputValue)
+        }, 350)
+        return () => clearTimeout(t)
+    }, [inputValue])
 
     const pagosFiltrados = pagos.filter(p => {
         const matchBusqueda = p.cliente.toLowerCase().includes(busqueda.toLowerCase()) || p.correo.toLowerCase().includes(busqueda.toLowerCase())
@@ -92,6 +101,11 @@ export default function PagosTab() {
         toast({ title: 'Marcado como pagado', status: 'success', duration: 2000 })
     }
 
+    const limpiarBusqueda = () => {
+        setInputValue('')
+        setBusqueda('')
+    }
+
     function handleSave() {
         if (!selected.cliente.trim() || !selected.monto) {
             toast({ title: 'Cliente y monto son requeridos', status: 'warning', duration: 2000 })
@@ -111,12 +125,46 @@ export default function PagosTab() {
     return (
         <Box>
             <HStack mb={6} spacing={4}>
-                <Button leftIcon={<FiPlus />} colorScheme="purple" onClick={handleNuevo}>Nuevo Pago</Button>
-                <InputGroup maxW="320px">
-                    <InputLeftElement pointerEvents="none" children={<FiSearch color="gray" />} />
-                    <Input placeholder="Buscar por cliente o correo..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+                <Button leftIcon={<FiPlus />} colorScheme="green" onClick={handleNuevo}>Nuevo Pago</Button>
+                <InputGroup maxW="320px" position="relative">
+                    <InputLeftElement pointerEvents="none">
+                        <FiSearch color="#24A148" />
+                    </InputLeftElement>
+                    <Input
+                        placeholder="Buscar pagos..."
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        bg="white"
+                        color="gray.800"
+                        borderColor="gray.300"
+                        _placeholder={{ color: "gray.500" }}
+                        _focus={{
+                            borderColor: 'green.400',
+                            boxShadow: '0 0 0 1px #48bb78',
+                        }}
+                    />
+                    {inputValue && (
+                        <InputRightElement>
+                            <IconButton
+                                aria-label="Limpiar búsqueda"
+                                icon={<FiX />}
+                                size="sm"
+                                variant="ghost"
+                                onClick={limpiarBusqueda}
+                            />
+                        </InputRightElement>
+                    )}
                 </InputGroup>
-                <Select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} maxW="200px">
+                <Select
+                    value={filtroEstado}
+                    onChange={(e) => setFiltroEstado(e.target.value)}
+                    maxW="200px"
+                    bg="white"
+                    color="gray.800"
+                    borderColor="gray.300"
+                    _focus={{ borderColor: "green.400", boxShadow: "0 0 0 1px #48bb78" }}
+                    _hover={{ borderColor: "green.400" }}
+                >
                     <option value="todos">Todos los estados</option>
                     <option value="pagado">Pagado</option>
                     <option value="pendiente">Pendiente</option>

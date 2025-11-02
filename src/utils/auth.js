@@ -86,3 +86,18 @@ export function getCurrentUser() {
         return null
     }
 }
+
+export function updateUser(updatedData) {
+    try {
+        const sess = JSON.parse(localStorage.getItem('rg_session') || 'null')
+        if (!sess) return null
+        const users = readUsers()
+        const userIndex = users.findIndex((u) => u.id === sess.userId)
+        if (userIndex === -1) return null
+        users[userIndex] = { ...users[userIndex], ...updatedData }
+        writeUsers(users)
+        return users[userIndex]
+    } catch (e) {
+        return null
+    }
+}

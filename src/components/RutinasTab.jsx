@@ -28,8 +28,11 @@ import {
     Tag,
     Text,
     useToast,
+    InputGroup,
+    InputLeftElement,
+    InputRightElement,
 } from '@chakra-ui/react'
-import { FiPlus, FiEdit, FiTrash2, FiSearch } from 'react-icons/fi'
+import { FiPlus, FiEdit, FiTrash2, FiSearch, FiX } from 'react-icons/fi'
 import { useState, useRef, useEffect } from 'react'
 
 const initialRutinas = [
@@ -49,6 +52,7 @@ export default function RutinasTab() {
         }
     })
     const [busqueda, setBusqueda] = useState('')
+    const [inputValue, setInputValue] = useState('')
     const [filtroNivel, setFiltroNivel] = useState('todos')
     const [selected, setSelected] = useState(null)
     const { isOpen, onOpen, onClose } = useDisclosure()
@@ -66,6 +70,18 @@ export default function RutinasTab() {
             // ignore
         }
     }, [rutinas])
+
+    useEffect(() => {
+        const t = setTimeout(() => {
+            setBusqueda(inputValue)
+        }, 350)
+        return () => clearTimeout(t)
+    }, [inputValue])
+
+    const limpiarBusqueda = () => {
+        setInputValue('')
+        setBusqueda('')
+    }
 
     const rutinasFiltradas = rutinas.filter(r => {
         const matchBusqueda = r.nombre.toLowerCase().includes(busqueda.toLowerCase()) || r.descripcion.toLowerCase().includes(busqueda.toLowerCase())
@@ -110,21 +126,47 @@ export default function RutinasTab() {
                 <Button leftIcon={<FiPlus />} colorScheme="green" _hover={{ borderColor: "green.400" }} onClick={handleNuevo} minW="fit-content" px={4}>
                     Nueva Rutina
                 </Button>
-                <Input 
-                    placeholder="Buscar rutinas..."
-                    value={busqueda}
-                    onChange={(e) => setBusqueda(e.target.value)}
-                    color="black"
-                    _placeholder={{ color: "gray.400" }}
-                    _focus={{
-                        borderColor: '#24A148',
-                        boxShadow: '0 0 8px rgba(36,161,72,0.25)',
-                        
-                    }}
+                <InputGroup maxW="320px" position="relative">
+                    <InputLeftElement pointerEvents="none">
+                        <FiSearch color="#24A148" />
+                    </InputLeftElement>
+                    <Input
+                        placeholder="Buscar rutinas..."
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        bg="white"
+                        color="gray.800"
+                        borderColor="gray.300"
+                        _placeholder={{ color: "gray.500" }}
+                        _focus={{
+                            borderColor: 'green.400',
+                            boxShadow: '0 0 0 1px #48bb78',
+                        }}
                     />
+                    {inputValue && (
+                        <InputRightElement>
+                            <IconButton
+                                aria-label="Limpiar búsqueda"
+                                icon={<FiX />}
+                                size="sm"
+                                variant="ghost"
+                                onClick={limpiarBusqueda}
+                            />
+                        </InputRightElement>
+                    )}
+                </InputGroup>
 
 
-                <Select value={filtroNivel} onChange={(e) => setFiltroNivel(e.target.value)} maxW="200px">
+                <Select
+                    value={filtroNivel}
+                    onChange={(e) => setFiltroNivel(e.target.value)}
+                    maxW="200px"
+                    bg="white"
+                    color="gray.800"
+                    borderColor="gray.300"
+                    _focus={{ borderColor: "green.400", boxShadow: "0 0 0 1px #48bb78" }}
+                    _hover={{ borderColor: "green.400" }}
+                >
                     <option value="todos">Todos los niveles</option>
                     <option value="principiante">Principiante</option>
                     <option value="intermedio">Intermedio</option>

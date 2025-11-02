@@ -32,7 +32,7 @@ const clientesIniciales = [
         id: 1,
         nombre: 'Ana María Rodríguez',
         correo: 'ana.rodriguez@email.com',
-        membresia: 'Premium',
+        membresia: 'Diaria/ Pase del dia',
         estado: 'Activo',
         ultimaVisita: '2025-10-29',
         rutinasAsignadas: 3,
@@ -41,7 +41,7 @@ const clientesIniciales = [
         id: 2,
         nombre: 'Carlos Mendoza',
         correo: 'carlos.m@email.com',
-        membresia: 'Básica',
+        membresia: 'Mensual',
         estado: 'Activo',
         ultimaVisita: '2025-10-28',
         rutinasAsignadas: 1,
@@ -50,10 +50,19 @@ const clientesIniciales = [
         id: 3,
         nombre: 'Laura Pérez',
         correo: 'laura.p@email.com',
-        membresia: 'Premium',
+        membresia: 'Diaria/ Pase del dia',
         estado: 'Inactivo',
         ultimaVisita: '2025-10-15',
         rutinasAsignadas: 0,
+    },
+    {
+        id: 4,
+        nombre: 'Jacob Sanchez',
+        correo: 'jacob@email.com',
+        membresia: 'Anual',
+        estado: 'Activo',
+        ultimaVisita: '2025-10-02',
+        rutinasAsignadas: 4,
     },
 ]
 
@@ -62,8 +71,30 @@ export default function ClientesTab() {
 
     const [clientes, setClientes] = useState(() => {
         try {
-            const raw = localStorage.getItem(STORAGE_KEY)
-            return raw ? JSON.parse(raw) : clientesIniciales
+            // Obtener usuarios registrados del sistema de login
+            const usuarios = JSON.parse(localStorage.getItem('rg_users') || '[]')
+            const clientesExistentes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+            
+            // Convertir usuarios a formato de clientes
+            const clientesDeUsuarios = usuarios.map((user, index) => ({
+                id: user.id || index + 1000,
+                nombre: user.name,
+                correo: user.email,
+                membresia: 'Mensual',
+                estado: 'Activo',
+                ultimaVisita: new Date().toISOString().split('T')[0],
+                rutinasAsignadas: Math.floor(Math.random() * 5)
+            }))
+            
+            // Combinar con clientes existentes (evitar duplicados)
+            const todosLosClientes = [...clientesIniciales]
+            clientesDeUsuarios.forEach(clienteUsuario => {
+                if (!todosLosClientes.some(c => c.correo === clienteUsuario.correo)) {
+                    todosLosClientes.push(clienteUsuario)
+                }
+            })
+            
+            return todosLosClientes
         } catch (e) {
             return clientesIniciales
         }
@@ -94,6 +125,42 @@ export default function ClientesTab() {
         return () => clearTimeout(t)
     }, [inputValue])
 
+    // Actualizar clientes cuando cambien los usuarios registrados
+    useEffect(() => {
+        const actualizarClientes = () => {
+            try {
+                const usuarios = JSON.parse(localStorage.getItem('rg_users') || '[]')
+                const clientesDeUsuarios = usuarios.map((user, index) => ({
+                    id: user.id || index + 1000,
+                    nombre: user.name,
+                    correo: user.email,
+                    membresia: 'Mensual',
+                    estado: 'Activo',
+                    ultimaVisita: new Date().toISOString().split('T')[0],
+                    rutinasAsignadas: Math.floor(Math.random() * 5)
+                }))
+                
+                const todosLosClientes = [...clientesIniciales]
+                clientesDeUsuarios.forEach(clienteUsuario => {
+                    if (!todosLosClientes.some(c => c.correo === clienteUsuario.correo)) {
+                        todosLosClientes.push(clienteUsuario)
+                    }
+                })
+                
+                setClientes(todosLosClientes)
+            } catch (e) {
+                console.error('Error actualizando clientes:', e)
+            }
+        }
+        
+        // Actualizar al montar el componente
+        actualizarClientes()
+        
+        // Escuchar cambios en localStorage
+        const interval = setInterval(actualizarClientes, 1000)
+        return () => clearInterval(interval)
+    }, [])
+
     // Filtrar clientes basado en búsqueda y filtro de membresía
     const clientesFiltrados = clientes.filter((cliente) => {
         const q = busqueda.trim().toLowerCase()
@@ -103,7 +170,7 @@ export default function ClientesTab() {
             cliente.correo.toLowerCase().includes(q)
         const coincideMembresia =
             filtroMembresia === 'todos' ||
-            cliente.membresia.toLowerCase() === filtroMembresia.toLowerCase()
+            cliente.membresia.toLowerCase().includes(filtroMembresia.toLowerCase())
         return coincideBusqueda && coincideMembresia
     })
 
@@ -177,9 +244,13 @@ export default function ClientesTab() {
                     _focus={{ borderColor: "green.400", boxShadow: "0 0 0 1px #48bb78" }}
                     _hover={{ borderColor: "green.400" }}
                 >
-                    <option value="todos">Todas las membresías</option>
-                    <option value="premium">Premium</option>
-                    <option value="básica">Básica</option>
+                    <option value="todas">Todas las membresías</option>
+                    <option value="diaria/ pase del dia">Diaria/ Pase del dia</option>
+                    <option value="semanal">Semanal</option>
+                    <option value="mensual">Mensual</option>
+                    <option value="trimestral">Trimestal</option>
+                    <option value="semestral">Semestral</option>
+                    <option value="anual">Anual</option>
                 </Select>
             </HStack>
 
