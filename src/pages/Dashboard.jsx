@@ -28,6 +28,7 @@ import RutinasTab from '../components/RutinasTab'
 import PagosTab from '../components/PagosTab'
 import EstadisticasTab from '../components/EstadisticasTab'
 import PerfilTab from '../components/PerfilTab'
+import Footer from '../components/Footer'
 import { useNavigate } from 'react-router-dom'
 import { logout, getCurrentUser } from '../utils/auth'
 import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser } from 'react-icons/fi'
@@ -301,6 +302,7 @@ export default function Dashboard() {
                     {currentTab === 'perfil' && <PerfilTab />}
                 </Box>
             </Flex>
+            <Footer />
         </Box>
     )
 }
