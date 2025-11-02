@@ -11,7 +11,7 @@ function App() {
 
   return (
     <Box minH="100vh" bgGradient="linear(to-br, gray.800, gray.700)" color="white">
-      <Container maxW="container.xl" py={6}>
+      <Container maxW="100%" py={6}>
         <ErrorBoundary>
           <Flex as="header" mb={6} align="center">
             <Heading size="md" color="green.300">Reynal-GYM</Heading>

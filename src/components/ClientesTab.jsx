@@ -194,7 +194,7 @@ export default function ClientesTab() {
                         {clientesFiltrados.map((cliente) => (
                             <Tr key={cliente.id}>
                                 <Td>
-                                    <Text fontWeight="medium">{cliente.nombre}</Text>
+                                    <Text color="gray.600" fontWeight="medium">{cliente.nombre}</Text>
                                     <Text fontSize="sm" color="gray.500">
                                         {cliente.correo}
                                     </Text>
@@ -209,7 +209,7 @@ export default function ClientesTab() {
                                         {cliente.estado}
                                     </Badge>
                                 </Td>
-                                <Td>{cliente.ultimaVisita}</Td>
+                                <Td color="gray.600">{cliente.ultimaVisita}</Td>
                                 <Td>
                                     <Badge colorScheme={cliente.rutinasAsignadas > 0 ? 'blue' : 'gray'}>
                                         {cliente.rutinasAsignadas} rutinas
