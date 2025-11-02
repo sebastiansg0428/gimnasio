@@ -148,7 +148,18 @@ export default function Dashboard() {
                         display={{ base: 'flex', md: 'none' }}
                         aria-label="Abrir menú"
                     />
-                    <Heading size="lg">Reynal-GYM</Heading>
+                    <Heading 
+                        size="xl" 
+                        bgGradient="linear(to-r, #24A148, #38B2AC)"
+                        bgClip="text"
+                        fontWeight="bold"
+                        letterSpacing="tight"
+                        _hover={{ transform: 'scale(1.05)' }}
+                        transition="all 0.2s"
+                        cursor="pointer"
+                    >
+                        💪 REYNAL-GYM
+                    </Heading>
                 </HStack>
 
                 <HStack spacing={4}>
