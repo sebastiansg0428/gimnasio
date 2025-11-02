@@ -37,19 +37,49 @@ import {
 import { FiPlus, FiSearch, FiEye, FiTrash2, FiCheck, FiX } from 'react-icons/fi'
 import { useState, useEffect } from 'react'
 
-// Datos de ejemplo de pagos
 const pagosIniciales = [
     { id: 1, cliente: 'Ana María Rodríguez', correo: 'ana.rodriguez@email.com', monto: 50, fecha: '2025-10-28', estado: 'Pagado', metodo: 'Tarjeta' },
     { id: 2, cliente: 'Carlos Mendoza', correo: 'carlos.m@email.com', monto: 35, fecha: '2025-10-25', estado: 'Pendiente', metodo: 'Efectivo' },
     { id: 3, cliente: 'Laura Pérez', correo: 'laura.p@email.com', monto: 75, fecha: '2025-10-10', estado: 'Vencido', metodo: 'Transferencia' },
+    { id: 4, cliente: 'Jacob Sanchez', correo: 'jacob@email.com', monto: 100, fecha: '2025-10-29', estado: 'Pagado', metodo: 'Tarjeta' },
+    { id: 5, cliente: 'Sebastian Sanchez', correo: 'sebastian@email.com', monto: 60, fecha: '2025-10-27', estado: 'Pendiente', metodo: 'Efectivo' }
 ]
 
 export default function PagosTab() {
     const STORAGE_KEY = 'rg_pagos'
     const [pagos, setPagos] = useState(() => {
         try {
-            const raw = localStorage.getItem(STORAGE_KEY)
-            return raw ? JSON.parse(raw) : pagosIniciales
+            // Obtener usuarios registrados y clientes
+            const usuarios = JSON.parse(localStorage.getItem('rg_users') || '[]')
+            const clientes = JSON.parse(localStorage.getItem('rg_clients') || '[]')
+            
+            // Crear pagos desde usuarios registrados
+            const pagosDeUsuarios = usuarios.map((user, index) => ({
+                id: `user_${user.id || index}`,
+                cliente: user.name,
+                correo: user.email,
+                monto: 50,
+                fecha: '2025-10-29',
+                estado: 'Pagado',
+                metodo: 'Tarjeta'
+            }))
+            
+            // Combinar con pagos iniciales
+            const todosPagos = [...pagosIniciales, ...pagosDeUsuarios]
+            
+            // Actualizar estados según clientes
+            const pagosActualizados = todosPagos.map(pago => {
+                const cliente = clientes.find(c => c.nombre === pago.cliente || c.correo === pago.correo)
+                if (cliente) {
+                    return {
+                        ...pago,
+                        estado: cliente.estado === 'Activo' ? 'Pagado' : 'Vencido'
+                    }
+                }
+                return pago
+            })
+            
+            return pagosActualizados
         } catch (e) {
             return pagosIniciales
         }
@@ -69,12 +99,58 @@ export default function PagosTab() {
         }
     }, [pagos])
 
+
+
     useEffect(() => {
         const t = setTimeout(() => {
             setBusqueda(inputValue)
         }, 350)
         return () => clearTimeout(t)
     }, [inputValue])
+
+    // Actualizar pagos con usuarios registrados y estados
+    useEffect(() => {
+        const actualizarPagos = () => {
+            try {
+                const usuarios = JSON.parse(localStorage.getItem('rg_users') || '[]')
+                const clientes = JSON.parse(localStorage.getItem('rg_clients') || '[]')
+                
+                // Crear pagos desde usuarios
+                const pagosDeUsuarios = usuarios.map((user, index) => ({
+                    id: `user_${user.id || index}`,
+                    cliente: user.name,
+                    correo: user.email,
+                    monto: 50,
+                    fecha: '2025-10-29',
+                    estado: 'Pagado',
+                    metodo: 'Tarjeta'
+                }))
+                
+                // Combinar todos los pagos
+                const todosPagos = [...pagosIniciales, ...pagosDeUsuarios]
+                
+                // Actualizar estados
+                const pagosActualizados = todosPagos.map(pago => {
+                    const cliente = clientes.find(c => c.nombre === pago.cliente || c.correo === pago.correo)
+                    if (cliente) {
+                        return {
+                            ...pago,
+                            estado: cliente.estado === 'Activo' ? 'Pagado' : 'Vencido'
+                        }
+                    }
+                    return pago
+                })
+                
+                setPagos(pagosActualizados)
+            } catch (e) {
+                // ignore
+            }
+        }
+        
+        actualizarPagos()
+        const interval = setInterval(actualizarPagos, 2000)
+        return () => clearInterval(interval)
+    }, [])
 
     const pagosFiltrados = pagos.filter(p => {
         const matchBusqueda = p.cliente.toLowerCase().includes(busqueda.toLowerCase()) || p.correo.toLowerCase().includes(busqueda.toLowerCase())

@@ -39,17 +39,17 @@ const initialRutinas = [
     { id: 1, nombre: 'Full Body Básico', duracionMin: 45, nivel: 'Principiante', descripcion: 'Rutina enfocada en fuerza global.' },
     { id: 2, nombre: 'HIIT Cardio', duracionMin: 30, nivel: 'Intermedio', descripcion: 'Intervalos de alta intensidad para cardio.' },
     { id: 3, nombre: 'Fuerza Piernas', duracionMin: 50, nivel: 'Avanzado', descripcion: 'Enfocada en cuádriceps, glúteos y femorales.' },
+    { id: 5, nombre: 'Crossfit', duracionMin: 60, nivel: 'Avanzado', descripcion: 'Enfocada en cardio, fuerza y resistencia.' },
+    { id: 6, nombre: 'Full Body / Upper-Lower (4 días)', duracionMin: 60, nivel: 'Avanzado', descripcion: 'Enfocada en cardio, fuerza y resistencia.' },
+    { id: 7, nombre: 'Rutina para Hipertrofia (5 días / Bosu dividido)', duracionMin: 60, nivel: 'Intermedio', descripcion: 'Ideal para ganar masa muscular estética.' }
 ]
 
 export default function RutinasTab() {
     const STORAGE_KEY = 'rg_rutinas'
     const [rutinas, setRutinas] = useState(() => {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY)
-            return raw ? JSON.parse(raw) : initialRutinas
-        } catch (e) {
-            return initialRutinas
-        }
+        // Forzar actualización con las nuevas rutinas
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(initialRutinas))
+        return initialRutinas
     })
     const [busqueda, setBusqueda] = useState('')
     const [inputValue, setInputValue] = useState('')
@@ -174,36 +174,52 @@ export default function RutinasTab() {
                 </Select>
             </HStack>
 
-            <Box overflowX="auto">
+            <Box overflowX="auto" bg="white" borderRadius="lg" boxShadow="sm">
                 <Table variant="simple">
-                    <Thead>
+                    <Thead bg="gray.50">
                         <Tr>
-                            <Th>Nombre</Th>
-                            <Th>Duración (min)</Th>
-                            <Th>Nivel</Th>
-                            <Th>Descripción</Th>
+                            <Th color="gray.700">Nombre</Th>
+                            <Th color="gray.700">Duración (min)</Th>
+                            <Th color="gray.700">Nivel</Th>
+                            <Th color="gray.700">Descripción</Th>
                             <Th></Th>
                         </Tr>
                     </Thead>
                     <Tbody>
                         {rutinasFiltradas.map(r => (
-                            <Tr key={r.id}>
+                            <Tr key={r.id} _hover={{ bg: "gray.50" }}>
                                 <Td>
-                                    <Text fontWeight="medium">{r.nombre}</Text>
+                                    <Text fontWeight="medium" color="gray.800">{r.nombre}</Text>
                                 </Td>
-                                <Td>{r.duracionMin}</Td>
+                                <Td color="gray.700">{r.duracionMin}</Td>
                                 <Td>
                                     <Tag colorScheme={r.nivel === 'Avanzado' ? 'red' : r.nivel === 'Intermedio' ? 'yellow' : 'green'}>
                                         {r.nivel}
                                     </Tag>
                                 </Td>
                                 <Td>
-                                    <Text noOfLines={2} maxW="40ch">{r.descripcion}</Text>
+                                    <Text noOfLines={2} maxW="40ch" color="gray.600">{r.descripcion}</Text>
                                 </Td>
                                 <Td>
                                     <HStack>
-                                        <IconButton aria-label="Editar" icon={<FiEdit />} size="sm" variant="ghost" onClick={() => handleEditar(r)} />
-                                        <IconButton aria-label="Eliminar" icon={<FiTrash2 />} size="sm" variant="ghost" onClick={() => handleEliminar(r.id)} />
+                                        <IconButton 
+                                            aria-label="Editar" 
+                                            icon={<FiEdit />} 
+                                            size="sm" 
+                                            variant="ghost" 
+                                            color="green.500"
+                                            _hover={{ bg: "green.50", color: "green.600" }}
+                                            onClick={() => handleEditar(r)} 
+                                        />
+                                        <IconButton 
+                                            aria-label="Eliminar" 
+                                            icon={<FiTrash2 />} 
+                                            size="sm" 
+                                            variant="ghost" 
+                                            color="red.500"
+                                            _hover={{ bg: "red.50", color: "red.600" }}
+                                            onClick={() => handleEliminar(r.id)} 
+                                        />
                                     </HStack>
                                 </Td>
                             </Tr>
