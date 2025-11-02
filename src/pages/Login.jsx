@@ -35,18 +35,56 @@ export default function Login() {
 
     return (
         <Box maxW="md" mx="auto">
-            <Heading mb={6} color="green.300"> Iniciar sesión</Heading>
+            <Heading mb={6} color="green.400" textAlign="center" fontSize="2xl">
+                🔐 Iniciar Sesión
+            </Heading>
             <Box as="form" onSubmit={handleSubmit}>
-                <VStack spacing={4} align="stretch">
-                    <Input placeholder="Ingresa tu correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} />
-                    <Input placeholder="Ingresa tu contraseña" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-                    <Button type="submit" colorScheme="green" isLoading={loading}>
-                        Entrar
+                <VStack spacing={5} align="stretch">
+                    <Input 
+                        placeholder="Correo electrónico" 
+                        value={email} 
+                        onChange={(e) => setEmail(e.target.value)}
+                        bg="white"
+                        color="gray.800"
+                        borderColor="gray.300"
+                        _placeholder={{ color: 'gray.500' }}
+                        _focus={{ borderColor: 'green.400', boxShadow: '0 0 0 1px #48bb78' }}
+                        size="lg"
+                        required
+                    />
+                    <Input 
+                        placeholder="Contraseña" 
+                        type="password" 
+                        value={password} 
+                        onChange={(e) => setPassword(e.target.value)}
+                        bg="white"
+                        color="gray.800"
+                        borderColor="gray.300"
+                        _placeholder={{ color: 'gray.500' }}
+                        _focus={{ borderColor: 'green.400', boxShadow: '0 0 0 1px #48bb78' }}
+                        size="lg"
+                        required
+                    />
+                    <Button 
+                        type="submit" 
+                        colorScheme="green" 
+                        isLoading={loading}
+                        size="lg"
+                        className="gym-button-hover"
+                        _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg' }}
+                    >
+                        Entrar al Gimnasio
                     </Button>
-                    <Text>
+                    <Text textAlign="center" color="gray.600">
                         ¿No tienes cuenta?{' '}
-                        <Link as={RouterLink} to="/register" color="green.200">
-                            Regístrate
+                        <Link 
+                            as={RouterLink} 
+                            to="/register" 
+                            color="green.400"
+                            fontWeight="semibold"
+                            _hover={{ color: 'green.300', textDecoration: 'underline' }}
+                        >
+                            Regístrate aquí
                         </Link>
                     </Text>
                 </VStack>

@@ -107,10 +107,23 @@ export default function RutinasTab() {
     return (
         <Box>
             <HStack mb={6} spacing={4}>
-                <Button leftIcon={<FiPlus />} colorScheme="green" _hover={{ borderColor: "green.400" }} onClick={handleNuevo}>
+                <Button leftIcon={<FiPlus />} colorScheme="green" _hover={{ borderColor: "green.400" }} onClick={handleNuevo} minW="fit-content" px={4}>
                     Nueva Rutina
                 </Button>
-                <Input placeholder="Buscar rutinas..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} maxW="300px" />
+                <Input 
+                    placeholder="Buscar rutinas..."
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    color="black"
+                    _placeholder={{ color: "gray.400" }}
+                    _focus={{
+                        borderColor: '#24A148',
+                        boxShadow: '0 0 8px rgba(36,161,72,0.25)',
+                        
+                    }}
+                    />
+
+
                 <Select value={filtroNivel} onChange={(e) => setFiltroNivel(e.target.value)} maxW="200px">
                     <option value="todos">Todos los niveles</option>
                     <option value="principiante">Principiante</option>

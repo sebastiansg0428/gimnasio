@@ -34,14 +34,59 @@ export default function Register() {
 
     return (
         <Box maxW="md" mx="auto">
-            <Heading mb={6}>Crear cuenta</Heading>
+            <Heading mb={6} color="green.400" textAlign="center" fontSize="2xl">
+                🏋️ Crear Cuenta
+            </Heading>
             <Box as="form" onSubmit={handleSubmit}>
-                <VStack spacing={4} align="stretch">
-                    <Input placeholder="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
-                    <Input placeholder="Correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} />
-                    <Input placeholder="Contraseña" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-                    <Button type="submit" colorScheme="purple" isLoading={loading}>
-                        Registrarse
+                <VStack spacing={5} align="stretch">
+                    <Input 
+                        placeholder="Nombre completo" 
+                        value={name} 
+                        onChange={(e) => setName(e.target.value)}
+                        bg="white"
+                        color="gray.800"
+                        borderColor="gray.300"
+                        _placeholder={{ color: 'gray.500' }}
+                        _focus={{ borderColor: 'green.400', boxShadow: '0 0 0 1px #48bb78' }}
+                        size="lg"
+                        required
+                    />
+                    <Input 
+                        placeholder="Correo electrónico" 
+                        type="email"
+                        value={email} 
+                        onChange={(e) => setEmail(e.target.value)}
+                        bg="white"
+                        color="gray.800"
+                        borderColor="gray.300"
+                        _placeholder={{ color: 'gray.500' }}
+                        _focus={{ borderColor: 'green.400', boxShadow: '0 0 0 1px #48bb78' }}
+                        size="lg"
+                        required
+                    />
+                    <Input 
+                        placeholder="Contraseña (mínimo 6 caracteres)" 
+                        type="password" 
+                        value={password} 
+                        onChange={(e) => setPassword(e.target.value)}
+                        bg="white"
+                        color="gray.800"
+                        borderColor="gray.300"
+                        _placeholder={{ color: 'gray.500' }}
+                        _focus={{ borderColor: 'green.400', boxShadow: '0 0 0 1px #48bb78' }}
+                        size="lg"
+                        minLength={6}
+                        required
+                    />
+                    <Button 
+                        type="submit" 
+                        colorScheme="green" 
+                        isLoading={loading}
+                        size="lg"
+                        className="gym-button-hover"
+                        _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg' }}
+                    >
+                        Unirse al Gimnasio
                     </Button>
                 </VStack>
             </Box>

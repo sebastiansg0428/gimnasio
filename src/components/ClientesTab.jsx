@@ -124,9 +124,12 @@ export default function ClientesTab() {
     return (
         <Box>
             <HStack mb={6} spacing={4} align="center">
-                <Button leftIcon={<FiUserPlus />}
+                <Button 
+                    leftIcon={<FiUserPlus />}
                     colorScheme="green"
-                    _hover={{ borderColor: "green.400" }}>
+                    className="gym-button-hover"
+                    _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg' }}
+                >
                     Nuevo Cliente
                 </Button>
 
@@ -140,11 +143,13 @@ export default function ClientesTab() {
                         placeholder="Buscar clientes..."
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
-                        color="black"
-                        _placeholder={{ color: "gray.400" }}
+                        bg="white"
+                        color="gray.800"
+                        borderColor="gray.300"
+                        _placeholder={{ color: "gray.500" }}
                         _focus={{
-                            borderColor: '#24A148',
-                            boxShadow: '0 0 8px rgba(36,161,72,0.25)',
+                            borderColor: 'green.400',
+                            boxShadow: '0 0 0 1px #48bb78',
                         }}
                     />
 
@@ -166,10 +171,10 @@ export default function ClientesTab() {
                     onChange={(e) => setFiltroMembresia(e.target.value)}
                     maxW="200px"
                     bg="white"
-                    color="black"
+                    color="gray.800"
                     borderColor="gray.300"
                     icon={<FiUser />}
-                    _focus={{ borderColor: "green.400", boxShadow: "0 0 0 1px green" }}
+                    _focus={{ borderColor: "green.400", boxShadow: "0 0 0 1px #48bb78" }}
                     _hover={{ borderColor: "green.400" }}
                 >
                     <option value="todos">Todas las membresías</option>
@@ -218,8 +223,8 @@ export default function ClientesTab() {
                                 <Td>
                                     <Menu>
                                         <MenuButton as={IconButton} icon={<FiMoreVertical />} variant="ghost" size="sm" />
-                                        <MenuList>
-                                            <MenuItem onClick={() => handleAccion('ver', cliente)}>Ver detalles</MenuItem>
+                                        <MenuList color="gray.600">
+                                            <MenuItem onClick={() => handleAccion('ver', cliente) }>Ver detalles</MenuItem>
                                             <MenuItem onClick={() => handleAccion('editar', cliente)}>Editar</MenuItem>
                                             <MenuItem onClick={() => handleAccion('rutina', cliente)}>Asignar rutina</MenuItem>
                                             <MenuItem onClick={() => handleAccion('desactivar', cliente)}>Desactivar</MenuItem>

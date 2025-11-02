@@ -155,16 +155,28 @@ export default function Dashboard() {
                         icon={<FiBell />}
                         variant="ghost"
                         aria-label="Notificaciones"
+                        color="gray.600"
+                        _hover={{ bg: 'gray.100', color: 'green.500' }}
                     />
                     <Menu>
-                        <MenuButton as={Button} rightIcon={<Avatar size="sm" bg='green.300' name={user?.name} />}>
+                        <MenuButton 
+                            as={Button} 
+                            rightIcon={<Avatar size="sm" bg='green.400' name={user?.name} />}
+                            variant="ghost"
+                            color="gray.700"
+                            _hover={{ bg: 'gray.100' }}
+                        >
                             {user?.name}
                         </MenuButton>
                         <MenuList>
-                            <MenuItem color="black">Perfil</MenuItem>
-                            <MenuItem color="black">Configuración</MenuItem>
+                            <MenuItem color="gray.700" _hover={{ bg: 'gray.50' }}>Perfil</MenuItem>
+                            <MenuItem color="gray.700" _hover={{ bg: 'gray.50' }}>Configuración</MenuItem>
                             <Divider />
-                            <MenuItem onClick={handleLogout} color="red.500">
+                            <MenuItem 
+                                onClick={handleLogout} 
+                                color="red.500"
+                                _hover={{ bg: 'red.50' }}
+                            >
                                 Cerrar sesión
                             </MenuItem>
                         </MenuList>
@@ -194,7 +206,8 @@ export default function Dashboard() {
                         variant={currentTab === 'home' ? 'solid' : 'ghost'}
                         colorScheme={currentTab === 'home' ? 'green' : 'gray'}
                         onClick={() => setCurrentTab('home')}
-                        _hover={{ borderColor: "green.400" }}
+                        _hover={{ bg: currentTab === 'home' ? 'green.500' : 'gray.100', transform: 'translateX(4px)' }}
+                        transition="all 0.2s"
                     >
                         Inicio
                     </Button>
@@ -205,7 +218,8 @@ export default function Dashboard() {
                         variant={currentTab === 'clientes' ? 'solid' : 'ghost'}
                         colorScheme={currentTab === 'clientes' ? 'green' : 'gray'}
                         onClick={() => setCurrentTab('clientes')}
-                        _hover={{ borderColor: "green.400" }}
+                        _hover={{ bg: currentTab === 'clientes' ? 'green.500' : 'gray.100', transform: 'translateX(4px)' }}
+                        transition="all 0.2s"
                     >
                         Clientes
                     </Button>
@@ -216,7 +230,8 @@ export default function Dashboard() {
                         variant={currentTab === 'rutinas' ? 'solid' : 'ghost'}
                         colorScheme={currentTab === 'rutinas' ? 'green' : 'gray'}
                         onClick={() => setCurrentTab('rutinas')}
-                        _hover={{ borderColor: "green.400" }}
+                        _hover={{ bg: currentTab === 'rutinas' ? 'green.500' : 'gray.100', transform: 'translateX(4px)' }}
+                        transition="all 0.2s"
                     >
                         Rutinas
                     </Button>
@@ -227,7 +242,8 @@ export default function Dashboard() {
                         variant={currentTab === 'pagos' ? 'solid' : 'ghost'}
                         colorScheme={currentTab === 'pagos' ? 'green' : 'gray'}
                         onClick={() => setCurrentTab('pagos')}
-                        _hover={{ borderColor: "green.400" }}
+                        _hover={{ bg: currentTab === 'pagos' ? 'green.500' : 'gray.100', transform: 'translateX(4px)' }}
+                        transition="all 0.2s"
                     >
                         Pagos
                     </Button>
@@ -238,7 +254,8 @@ export default function Dashboard() {
                         variant={currentTab === 'estadisticas' ? 'solid' : 'ghost'}
                         colorScheme={currentTab === 'estadisticas' ? 'green' : 'gray'}
                         onClick={() => setCurrentTab('estadisticas')}
-                        _hover={{ borderColor: "green.400" }}
+                        _hover={{ bg: currentTab === 'estadisticas' ? 'green.500' : 'gray.100', transform: 'translateX(4px)' }}
+                        transition="all 0.2s"
                     >
                         Estadísticas
                     </Button>

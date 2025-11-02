@@ -15,7 +15,7 @@ function monthKey(d) {
 }
 
 // Dibujar un simple sparkline (línea) usando SVG
-function Sparkline({ values = [], color = '#6B46C1', height = 40 }) {
+function Sparkline({ values = [], color = '#24A148', height = 40 }) {
     if (!values.length) return null
     const w = Math.max(80, values.length * 10)
     const max = Math.max(...values)
@@ -30,7 +30,7 @@ function Sparkline({ values = [], color = '#6B46C1', height = 40 }) {
 }
 
 // Barra simple para distribución
-function HorizontalBar({ label, value, total, color = '#805AD5' }) {
+function HorizontalBar({ label, value, total, color = '#24A148' }) {
     const pct = total ? Math.round((value / total) * 100) : 0
     return (
         <Box>
@@ -144,7 +144,7 @@ export default function EstadisticasTab() {
                                     return (
                                         <div key={i} style={{ textAlign: 'center' }}>
                                             <div style={{ width: 28, height: 120, display: 'flex', alignItems: 'flex-end' }}>
-                                                <div style={{ width: '100%', height: `${Math.max(6, h)}px`, background: '#6B46C1', borderRadius: 6 }} />
+                                                <div style={{ width: '100%', height: `${Math.max(6, h)}px`, background: '#24A148', borderRadius: 6 }} />
                                             </div>
                                             <div style={{ fontSize: 12, marginTop: 6 }}>{/* month label */}</div>
                                         </div>
@@ -160,7 +160,7 @@ export default function EstadisticasTab() {
                         <Heading size="sm" mb={4}>Distribución por membresía</Heading>
                         <VStack spacing={3} align="stretch">
                             {Object.entries(clientesPorMembresia).map(([k, v]) => (
-                                <HorizontalBar key={k} label={k} value={v} total={totalMembresias} color="#6B46C1" />
+                                <HorizontalBar key={k} label={k} value={v} total={totalMembresias} color="#24A148" />
                             ))}
                         </VStack>
                     </CardBody>
