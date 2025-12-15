@@ -30,9 +30,10 @@ import EstadisticasTab from '../components/EstadisticasTab'
 import PerfilTab from '../components/PerfilTab'
 import Footer from '../components/Footer'
 import EntrenadoresTab from '../components/EntrenadoresTab'
+import ProductosTab from '../components/ProductosTab'
 import { useNavigate } from 'react-router-dom'
 import { logout, getCurrentUser } from '../utils/auth'
-import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck } from 'react-icons/fi'
+import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck, FiBox } from 'react-icons/fi'
 import { useState } from 'react'
 
 // Datos de ejemplo
@@ -280,6 +281,18 @@ export default function Dashboard() {
                         Estadísticas
                     </Button>
                     <Button
+                        leftIcon={<FiBox />}
+                        w="full"
+                        justifyContent="start"
+                        variant={currentTab === 'productos' ? 'solid' : 'ghost'}
+                        colorScheme={currentTab === 'productos' ? 'green' : 'gray'}
+                        onClick={() => setCurrentTab('productos')}
+                        _hover={{ bg: currentTab === 'productos' ? 'green.500' : 'gray.100', transform: 'translateX(4px)' }}
+                        transition="all 0.2s"
+                    >
+                        Productos
+                    </Button>
+                    <Button
                         leftIcon={<FiUserCheck />}
                         w="full"
                         justifyContent="start"
@@ -313,6 +326,7 @@ export default function Dashboard() {
                     {currentTab === 'pagos' && <PagosTab />}
                     {currentTab === 'estadisticas' && <EstadisticasTab />}
                     {currentTab === 'entrenadores' && <EntrenadoresTab />}
+                    {currentTab === 'productos' && <ProductosTab />}
                     {currentTab === 'perfil' && <PerfilTab />}
                 </Box>
             </Flex>
