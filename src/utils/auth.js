@@ -1,75 +1,43 @@
-// Utilities for simple client-side auth using Web Crypto API + localStorage
+// Auth utilities using backend API + localStorage session
 
-function bufToHex(buffer) {
-    return Array.from(new Uint8Array(buffer))
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('')
-}
+const API_BASE = 'http://localhost:3001'
 
-function hexToBuf(hex) {
-    const bytes = new Uint8Array(hex.match(/.{1,2}/g).map((b) => parseInt(b, 16)))
-    return bytes.buffer
-}
-
-export async function generateSalt() {
-    const arr = new Uint8Array(16)
-    crypto.getRandomValues(arr)
-    return bufToHex(arr.buffer)
-}
-
-export async function hashPassword(password, saltHex) {
-    // Combine salt + password (simple scheme) and SHA-256
-    const enc = new TextEncoder()
-    const saltBuf = hexToBuf(saltHex)
-    const pwdBuf = enc.encode(password)
-    const combined = new Uint8Array(saltBuf.byteLength + pwdBuf.byteLength)
-    combined.set(new Uint8Array(saltBuf), 0)
-    combined.set(pwdBuf, saltBuf.byteLength)
-    const digest = await crypto.subtle.digest('SHA-256', combined)
-    return bufToHex(digest)
-}
-
-function readUsers() {
-    try {
-        return JSON.parse(localStorage.getItem('rg_users') || '[]')
-    } catch (e) {
-        return []
+async function handleResponse(res) {
+    const contentType = res.headers.get('content-type') || ''
+    let body = null
+    if (contentType.includes('application/json')) {
+        body = await res.json()
+    } else {
+        body = await res.text()
     }
-}
-
-function writeUsers(users) {
-    localStorage.setItem('rg_users', JSON.stringify(users))
+    if (!res.ok) {
+        const msg = body && body.message ? body.message : (body && typeof body === 'string' ? body : res.statusText)
+        throw new Error(msg || 'Error en la petición')
+    }
+    return body
 }
 
 export async function registerUser({ name, email, password }) {
-    const users = readUsers()
-    if (users.some((u) => u.email === email)) {
-        throw new Error('El correo ya está registrado')
-    }
-
-    const salt = await generateSalt()
-    const hash = await hashPassword(password, salt)
-    const user = {
-        id: Date.now().toString(),
-        name,
-        email,
-        salt,
-        hash,
-    }
-    users.push(user)
-    writeUsers(users)
-    return user
+    const res = await fetch(`${API_BASE}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+    })
+    const body = await handleResponse(res)
+    // Store session using returned user (backend should return user or token)
+    localStorage.setItem('rg_session', JSON.stringify({ user: body }))
+    return body
 }
 
 export async function loginUser({ email, password }) {
-    const users = readUsers()
-    const user = users.find((u) => u.email === email)
-    if (!user) throw new Error('Usuario no encontrado')
-    const calc = await hashPassword(password, user.salt)
-    if (calc !== user.hash) throw new Error('Contraseña incorrecta')
-    // Set session (simple)
-    localStorage.setItem('rg_session', JSON.stringify({ userId: user.id }))
-    return user
+    const res = await fetch(`${API_BASE}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+    })
+    const body = await handleResponse(res)
+    localStorage.setItem('rg_session', JSON.stringify({ user: body }))
+    return body
 }
 
 export function logout() {
@@ -80,8 +48,7 @@ export function getCurrentUser() {
     try {
         const sess = JSON.parse(localStorage.getItem('rg_session') || 'null')
         if (!sess) return null
-        const users = readUsers()
-        return users.find((u) => u.id === sess.userId) || null
+        return sess.user || null
     } catch (e) {
         return null
     }
@@ -91,12 +58,9 @@ export function updateUser(updatedData) {
     try {
         const sess = JSON.parse(localStorage.getItem('rg_session') || 'null')
         if (!sess) return null
-        const users = readUsers()
-        const userIndex = users.findIndex((u) => u.id === sess.userId)
-        if (userIndex === -1) return null
-        users[userIndex] = { ...users[userIndex], ...updatedData }
-        writeUsers(users)
-        return users[userIndex]
+        const user = { ...(sess.user || {}), ...updatedData }
+        localStorage.setItem('rg_session', JSON.stringify({ user }))
+        return user
     } catch (e) {
         return null
     }
