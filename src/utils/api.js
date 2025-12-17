@@ -58,6 +58,57 @@ export async function getUsuarios() {
     return handleResponse(res)
 }
 
+export async function getUsuario(id) {
+    const res = await fetch(`${API_BASE}/usuarios/${id}`)
+    return handleResponse(res)
+}
+
+export async function createUsuario(data) {
+    const res = await fetch(`${API_BASE}/usuarios`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    })
+    return handleResponse(res)
+}
+
+export async function updateUsuario(id, data) {
+    const res = await fetch(`${API_BASE}/usuarios/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    })
+    return handleResponse(res)
+}
+
+export async function deleteUsuario(id) {
+    const res = await fetch(`${API_BASE}/usuarios/${id}`, { method: 'DELETE' })
+    return handleResponse(res)
+}
+
+export async function getRutinasUsuario(id) {
+    const res = await fetch(`${API_BASE}/usuarios/${id}/rutinas`)
+    return handleResponse(res)
+}
+
+export async function assignRutinaToUsuario(id, data) {
+    const res = await fetch(`${API_BASE}/usuarios/${id}/rutinas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    })
+    return handleResponse(res)
+}
+
+export async function updateAsignacion(usuarioId, asignacionId, data) {
+    const res = await fetch(`${API_BASE}/usuarios/${usuarioId}/rutinas/${asignacionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    })
+    return handleResponse(res)
+}
+
 // Rutinas
 export async function getRutinas() {
     const res = await fetch(`${API_BASE}/rutinas`)

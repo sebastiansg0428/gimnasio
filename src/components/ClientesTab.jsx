@@ -1,6 +1,6 @@
 // ClientesTab.jsx
 import React, { useState, useEffect } from 'react'
-import api from '../utils/api'
+import api, { createUsuario, deleteUsuario, getRutinasUsuario, assignRutinaToUsuario, getRutinas } from '../utils/api'
 import {
     Box,
     Table,
@@ -21,6 +21,14 @@ import {
     MenuButton,
     MenuList,
     MenuItem,
+    Modal,
+    ModalOverlay,
+    ModalContent,
+    ModalHeader,
+    ModalBody,
+    ModalFooter,
+    FormControl,
+    FormLabel,
     InputGroup,
     InputLeftElement,
     InputRightElement,
@@ -76,8 +84,50 @@ export default function ClientesTab() {
     const [busqueda, setBusqueda] = useState('')
     // Estado intermedio del input para debounce
     const [inputValue, setInputValue] = useState('')
-    const [filtroMembresia, setFiltroMembresia] = useState('todas')
+    const [filtroMembresia, setFiltroMembresia] = useState('todos')
     const toast = useToast()
+    const [isOpen, setIsOpen] = useState(false)
+    const [newUser, setNewUser] = useState({ nombre: '', email: '', password: '', membresia: 'Mensual' })
+
+    const openModal = () => setIsOpen(true)
+    const closeModal = () => setIsOpen(false)
+    const [isAssignOpen, setIsAssignOpen] = useState(false)
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+    const [rutinasDisponibles, setRutinasDisponibles] = useState([])
+    const [selectedClienteForAssign, setSelectedClienteForAssign] = useState(null)
+    const [selectedRutinaId, setSelectedRutinaId] = useState(null)
+    const [assignedRutinas, setAssignedRutinas] = useState([])
+
+    const openAssignModal = async (cliente) => {
+        setSelectedClienteForAssign(cliente)
+        setSelectedRutinaId(null)
+        try {
+            const data = await getRutinas()
+            setRutinasDisponibles(Array.isArray(data) ? data : [])
+        } catch (err) {
+            console.error('Error cargando rutinas', err)
+            setRutinasDisponibles([])
+        }
+        setIsAssignOpen(true)
+    }
+
+    const closeAssignModal = () => {
+        setIsAssignOpen(false)
+        setSelectedClienteForAssign(null)
+    }
+
+    const openDetailsModal = async (cliente) => {
+        try {
+            const data = await getRutinasUsuario(cliente.id)
+            setAssignedRutinas(Array.isArray(data) ? data : [])
+        } catch (err) {
+            console.error('Error cargando rutinas asignadas', err)
+            setAssignedRutinas([])
+        }
+        setIsDetailsOpen(true)
+    }
+
+    const closeDetailsModal = () => setIsDetailsOpen(false)
 
     // Persistir clientes en localStorage
     useEffect(() => {
@@ -168,6 +218,8 @@ export default function ClientesTab() {
     })
 
     const handleAccion = (accion, cliente) => {
+        if (accion === 'rutina') return openAssignModal(cliente)
+        if (accion === 'ver') return openDetailsModal(cliente)
         toast({
             title: `Acción: ${accion}`,
             description: `Para cliente: ${cliente.nombre}`,
@@ -176,12 +228,69 @@ export default function ClientesTab() {
         })
     }
 
+    async function handleCrearUsuario() {
+        if (!newUser.email || !newUser.password || !newUser.nombre) {
+            toast({ title: 'Completa nombre, email y contraseña', status: 'warning', duration: 2000 })
+            return
+        }
+        try {
+            const payload = { name: newUser.nombre, email: newUser.email, password: newUser.password }
+            const created = await createUsuario(payload)
+            const id = created?.id || created?._id || Date.now()
+            const cliente = {
+                id,
+                nombre: created.name || newUser.nombre,
+                correo: created.email || newUser.email,
+                membresia: newUser.membresia,
+                estado: 'Activo',
+                ultimaVisita: new Date().toISOString().split('T')[0],
+                rutinasAsignadas: 0,
+            }
+            setClientes(prev => [cliente, ...prev])
+            toast({ title: 'Usuario creado', status: 'success', duration: 2000 })
+            setNewUser({ nombre: '', email: '', password: '', membresia: 'Mensual' })
+            closeModal()
+        } catch (err) {
+            console.error(err)
+            toast({ title: 'Error al crear usuario', status: 'error', duration: 3000 })
+        }
+    }
+
+    async function handleEliminarUsuario(cliente) {
+        try {
+            await deleteUsuario(cliente.id)
+            setClientes(prev => prev.filter(c => c.id !== cliente.id))
+            toast({ title: 'Usuario eliminado', status: 'info', duration: 2000 })
+        } catch (err) {
+            console.error(err)
+            toast({ title: 'Error al eliminar usuario', status: 'error', duration: 3000 })
+        }
+    }
+
+    async function handleAssignRutina() {
+        if (!selectedClienteForAssign || !selectedRutinaId) {
+            toast({ title: 'Selecciona una rutina', status: 'warning', duration: 2000 })
+            return
+        }
+        try {
+            await assignRutinaToUsuario(selectedClienteForAssign.id, { rutinaId: selectedRutinaId })
+            // actualizar contador localmente
+            setClientes(prev => prev.map(c => c.id === selectedClienteForAssign.id ? ({ ...c, rutinasAsignadas: (c.rutinasAsignadas||0) + 1 }) : c))
+            toast({ title: 'Rutina asignada', status: 'success', duration: 2000 })
+            closeAssignModal()
+        } catch (err) {
+            console.error(err)
+            toast({ title: 'Error al asignar rutina', status: 'error', duration: 3000 })
+        }
+    }
+
     const limpiarBusqueda = () => {
         setInputValue('')
         setBusqueda('')
     }
 
     return (
+        <>
         <Box>
             <HStack mb={6} spacing={4} align="center">
                 <Button 
@@ -189,6 +298,7 @@ export default function ClientesTab() {
                     colorScheme="green"
                     className="gym-button-hover"
                     _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg' }}
+                    onClick={openModal}
                 >
                     Nuevo Cliente
                 </Button>
@@ -237,7 +347,7 @@ export default function ClientesTab() {
                     _focus={{ borderColor: "green.400", boxShadow: "0 0 0 1px #48bb78" }}
                     _hover={{ borderColor: "green.400" }}
                 >
-                    <option value="todas">Todas las membresías</option>
+                    <option value="todos">Todas las membresías</option>
                     <option value="diaria/ pase del dia">Diaria/ Pase del dia</option>
                     <option value="semanal">Semanal</option>
                     <option value="mensual">Mensual</option>
@@ -292,6 +402,7 @@ export default function ClientesTab() {
                                             <MenuItem onClick={() => handleAccion('editar', cliente)}>Editar</MenuItem>
                                             <MenuItem onClick={() => handleAccion('rutina', cliente)}>Asignar rutina</MenuItem>
                                             <MenuItem onClick={() => handleAccion('desactivar', cliente)}>Desactivar</MenuItem>
+                                            <MenuItem onClick={() => handleEliminarUsuario(cliente)} color="red.500">Eliminar</MenuItem>
                                         </MenuList>
                                     </Menu>
                                 </Td>
@@ -301,5 +412,98 @@ export default function ClientesTab() {
                 </Table>
             </Box>
         </Box>
+        
+        {/* Modal Crear Usuario */}
+        <Modal isOpen={isOpen} onClose={closeModal}>
+            <ModalOverlay />
+            <ModalContent>
+                <ModalHeader>Nuevo Cliente</ModalHeader>
+                <ModalBody>
+                    <FormControl mb={3}>
+                        <FormLabel>Nombre</FormLabel>
+                        <Input value={newUser.nombre} onChange={(e) => setNewUser(s => ({ ...s, nombre: e.target.value }))} />
+                    </FormControl>
+                    <FormControl mb={3}>
+                        <FormLabel>Email</FormLabel>
+                        <Input value={newUser.email} onChange={(e) => setNewUser(s => ({ ...s, email: e.target.value }))} />
+                    </FormControl>
+                    <FormControl mb={3}>
+                        <FormLabel>Contraseña</FormLabel>
+                        <Input type="password" value={newUser.password} onChange={(e) => setNewUser(s => ({ ...s, password: e.target.value }))} />
+                    </FormControl>
+                    <FormControl>
+                        <FormLabel>Membresía</FormLabel>
+                        <Select value={newUser.membresia} onChange={(e) => setNewUser(s => ({ ...s, membresia: e.target.value }))}>
+                            <option>Mensual</option>
+                            <option>Diaria/ Pase del dia</option>
+                            <option>Semanal</option>
+                            <option>Anual</option>
+                        </Select>
+                    </FormControl>
+                </ModalBody>
+                <ModalFooter>
+                    <Button variant="ghost" mr={3} onClick={closeModal}>Cancelar</Button>
+                    <Button colorScheme="green" onClick={handleCrearUsuario}>Crear</Button>
+                </ModalFooter>
+            </ModalContent>
+        </Modal>
+        {/* Modal Asignar Rutina */}
+        <Modal isOpen={isAssignOpen} onClose={closeAssignModal}>
+            <ModalOverlay />
+            <ModalContent>
+                <ModalHeader>Asignar rutina a {selectedClienteForAssign?.nombre}</ModalHeader>
+                <ModalBody>
+                    <FormControl mb={3}>
+                        <FormLabel>Rutina</FormLabel>
+                        <Select placeholder="Selecciona rutina" value={selectedRutinaId || ''} onChange={(e) => setSelectedRutinaId(e.target.value)}>
+                            {rutinasDisponibles.map(r => (
+                                <option key={r.id || r._id} value={r.id ?? r._id}>{r.nombre ?? r.name}</option>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </ModalBody>
+                <ModalFooter>
+                    <Button variant="ghost" mr={3} onClick={closeAssignModal}>Cancelar</Button>
+                    <Button colorScheme="green" onClick={handleAssignRutina}>Asignar</Button>
+                </ModalFooter>
+            </ModalContent>
+        </Modal>
+
+        {/* Modal Detalles: rutinas asignadas */}
+        <Modal isOpen={isDetailsOpen} onClose={closeDetailsModal} size="lg">
+            <ModalOverlay />
+            <ModalContent>
+                <ModalHeader>Rutinas asignadas</ModalHeader>
+                <ModalBody>
+                    {assignedRutinas.length === 0 ? (
+                        <Text>No hay rutinas asignadas.</Text>
+                    ) : (
+                        <Box>
+                            <Table variant="simple">
+                                <Thead>
+                                    <Tr><Th>Nombre</Th><Th>Objetivo</Th><Th>Duración (sem)</Th></Tr>
+                                </Thead>
+                                <Tbody>
+                                    {assignedRutinas.map(rt => (
+                                        <Tr key={rt.id || rt._id}>
+                                            <Td>{rt.nombre ?? rt.name}</Td>
+                                            <Td>{rt.objetivo ?? '-'}</Td>
+                                            <Td>{rt.duracion_semanas ?? rt.duracionSemanas ?? '-'}</Td>
+                                        </Tr>
+                                    ))}
+                                </Tbody>
+                            </Table>
+                        </Box>
+                    )}
+                </ModalBody>
+                <ModalFooter>
+                    <Button onClick={closeDetailsModal}>Cerrar</Button>
+                </ModalFooter>
+            </ModalContent>
+        </Modal>
+        </>
     )
 }
+
+
+    // Modals fuera del componente return are added inline above; below we append assign/details modals by patching file end
