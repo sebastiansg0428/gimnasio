@@ -1,5 +1,6 @@
 // ClientesTab.jsx
 import React, { useState, useEffect } from 'react'
+import api from '../utils/api'
 import {
     Box,
     Table,
@@ -69,42 +70,13 @@ const clientesIniciales = [
 export default function ClientesTab() {
     const STORAGE_KEY = 'rg_clients'
 
-    const [clientes, setClientes] = useState(() => {
-        try {
-            // Obtener usuarios registrados del sistema de login
-            const usuarios = JSON.parse(localStorage.getItem('rg_users') || '[]')
-            const clientesExistentes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
-            
-            // Convertir usuarios a formato de clientes
-            const clientesDeUsuarios = usuarios.map((user, index) => ({
-                id: user.id || index + 1000,
-                nombre: user.name,
-                correo: user.email,
-                membresia: 'Mensual',
-                estado: 'Activo',
-                ultimaVisita: new Date().toISOString().split('T')[0],
-                rutinasAsignadas: Math.floor(Math.random() * 5)
-            }))
-            
-            // Combinar con clientes existentes (evitar duplicados)
-            const todosLosClientes = [...clientesIniciales]
-            clientesDeUsuarios.forEach(clienteUsuario => {
-                if (!todosLosClientes.some(c => c.correo === clienteUsuario.correo)) {
-                    todosLosClientes.push(clienteUsuario)
-                }
-            })
-            
-            return todosLosClientes
-        } catch (e) {
-            return clientesIniciales
-        }
-    })
+    const [clientes, setClientes] = useState(clientesIniciales)
 
     // Estado real que aplica el filtro
     const [busqueda, setBusqueda] = useState('')
     // Estado intermedio del input para debounce
     const [inputValue, setInputValue] = useState('')
-    const [filtroMembresia, setFiltroMembresia] = useState('todos')
+    const [filtroMembresia, setFiltroMembresia] = useState('todas')
     const toast = useToast()
 
     // Persistir clientes en localStorage
@@ -125,40 +97,61 @@ export default function ClientesTab() {
         return () => clearTimeout(t)
     }, [inputValue])
 
-    // Actualizar clientes cuando cambien los usuarios registrados
+    // Obtener usuarios desde backend y reflejar en tabla de clientes
     useEffect(() => {
-        const actualizarClientes = () => {
+        let mounted = true
+
+        async function fetchUsuarios() {
             try {
-                const usuarios = JSON.parse(localStorage.getItem('rg_users') || '[]')
-                const clientesDeUsuarios = usuarios.map((user, index) => ({
-                    id: user.id || index + 1000,
-                    nombre: user.name,
-                    correo: user.email,
-                    membresia: 'Mensual',
-                    estado: 'Activo',
-                    ultimaVisita: new Date().toISOString().split('T')[0],
-                    rutinasAsignadas: Math.floor(Math.random() * 5)
+                const usuarios = await api.getUsuarios()
+                // Mapear usuarios a formato de cliente
+                const clientesDeUsuarios = (usuarios || []).map((user, index) => ({
+                    id: user.id || user._id || index + 1000,
+                    nombre: user.name || user.nombre || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+                    correo: user.email || user.correo || '',
+                    membresia: user.membresia || 'Mensual',
+                    estado: user.estado || 'Activo',
+                    ultimaVisita: user.ultimaVisita || new Date().toISOString().split('T')[0],
+                    rutinasAsignadas: user.rutinasAsignadas ?? Math.floor(Math.random() * 5),
                 }))
-                
+
                 const todosLosClientes = [...clientesIniciales]
                 clientesDeUsuarios.forEach(clienteUsuario => {
                     if (!todosLosClientes.some(c => c.correo === clienteUsuario.correo)) {
                         todosLosClientes.push(clienteUsuario)
                     }
                 })
-                
-                setClientes(todosLosClientes)
+
+                if (mounted) setClientes(todosLosClientes)
             } catch (e) {
-                console.error('Error actualizando clientes:', e)
+                // Fallback: leer de localStorage si backend no disponible
+                try {
+                    const usuariosLocal = JSON.parse(localStorage.getItem('rg_users') || '[]')
+                    const clientesDeUsuarios = usuariosLocal.map((user, index) => ({
+                        id: user.id || index + 1000,
+                        nombre: user.name,
+                        correo: user.email,
+                        membresia: 'Mensual',
+                        estado: 'Activo',
+                        ultimaVisita: new Date().toISOString().split('T')[0],
+                        rutinasAsignadas: Math.floor(Math.random() * 5)
+                    }))
+                    const todosLosClientes = [...clientesIniciales]
+                    clientesDeUsuarios.forEach(clienteUsuario => {
+                        if (!todosLosClientes.some(c => c.correo === clienteUsuario.correo)) {
+                            todosLosClientes.push(clienteUsuario)
+                        }
+                    })
+                    if (mounted) setClientes(todosLosClientes)
+                } catch (err) {
+                    console.error('Error cargando usuarios fallback:', err)
+                }
             }
         }
-        
-        // Actualizar al montar el componente
-        actualizarClientes()
-        
-        // Escuchar cambios en localStorage
-        const interval = setInterval(actualizarClientes, 1000)
-        return () => clearInterval(interval)
+
+        fetchUsuarios()
+        const interval = setInterval(fetchUsuarios, 5000)
+        return () => { mounted = false; clearInterval(interval) }
     }, [])
 
     // Filtrar clientes basado en búsqueda y filtro de membresía

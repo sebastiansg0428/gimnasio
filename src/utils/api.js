@@ -53,6 +53,40 @@ export async function getGananciaProducto(id) {
     return handleResponse(res)
 }
 
+export async function getUsuarios() {
+    const res = await fetch(`${API_BASE}/usuarios`)
+    return handleResponse(res)
+}
+
+// Rutinas
+export async function getRutinas() {
+    const res = await fetch(`${API_BASE}/rutinas`)
+    return handleResponse(res)
+}
+
+export async function createRutina(data) {
+    const res = await fetch(`${API_BASE}/rutinas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    })
+    return handleResponse(res)
+}
+
+export async function updateRutina(id, data) {
+    const res = await fetch(`${API_BASE}/rutinas/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    })
+    return handleResponse(res)
+}
+
+export async function deleteRutina(id) {
+    const res = await fetch(`${API_BASE}/rutinas/${id}`, { method: 'DELETE' })
+    return handleResponse(res)
+}
+
 export default {
     getProductos,
     getProducto,
@@ -60,4 +94,5 @@ export default {
     updateProducto,
     deleteProducto,
     getGananciaProducto,
+    getUsuarios,
 }
