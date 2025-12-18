@@ -35,50 +35,12 @@ import {
 } from '@chakra-ui/react'
 import { FiMoreVertical, FiSearch, FiUser, FiUserPlus, FiX } from 'react-icons/fi'
 
-// Datos de ejemplo de clientes
-const clientesIniciales = [
-    {
-        id: 1,
-        nombre: 'Ana María Rodríguez',
-        correo: 'ana.rodriguez@email.com',
-        membresia: 'Diaria/ Pase del dia',
-        estado: 'Activo',
-        ultimaVisita: '2025-10-29',
-        rutinasAsignadas: 3,
-    },
-    {
-        id: 2,
-        nombre: 'Carlos Mendoza',
-        correo: 'carlos.m@email.com',
-        membresia: 'Mensual',
-        estado: 'Activo',
-        ultimaVisita: '2025-10-28',
-        rutinasAsignadas: 1,
-    },
-    {
-        id: 3,
-        nombre: 'Laura Pérez',
-        correo: 'laura.p@email.com',
-        membresia: 'Diaria/ Pase del dia',
-        estado: 'Inactivo',
-        ultimaVisita: '2025-10-15',
-        rutinasAsignadas: 0,
-    },
-    {
-        id: 4,
-        nombre: 'Jacob Sanchez',
-        correo: 'jacob@email.com',
-        membresia: 'Anual',
-        estado: 'Activo',
-        ultimaVisita: '2025-10-02',
-        rutinasAsignadas: 4,
-    },
-]
+// Lista inicial vacía: mostrar solo usuarios provenientes del backend
 
 export default function ClientesTab() {
     const STORAGE_KEY = 'rg_clients'
 
-    const [clientes, setClientes] = useState(clientesIniciales)
+    const [clientes, setClientes] = useState([])
 
     // Estado real que aplica el filtro
     const [busqueda, setBusqueda] = useState('')
@@ -157,6 +119,7 @@ export default function ClientesTab() {
                 // Mapear usuarios a formato de cliente
                 const clientesDeUsuarios = (usuarios || []).map((user, index) => ({
                     id: user.id || user._id || index + 1000,
+                    usuario: user.username || user.userName || user.name || (user.email ? user.email.split('@')[0] : ''),
                     nombre: user.name || user.nombre || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
                     correo: user.email || user.correo || '',
                     membresia: user.membresia || 'Mensual',
@@ -165,34 +128,22 @@ export default function ClientesTab() {
                     rutinasAsignadas: user.rutinasAsignadas ?? Math.floor(Math.random() * 5),
                 }))
 
-                const todosLosClientes = [...clientesIniciales]
-                clientesDeUsuarios.forEach(clienteUsuario => {
-                    if (!todosLosClientes.some(c => c.correo === clienteUsuario.correo)) {
-                        todosLosClientes.push(clienteUsuario)
-                    }
-                })
-
-                if (mounted) setClientes(todosLosClientes)
+                if (mounted) setClientes(clientesDeUsuarios)
             } catch (e) {
                 // Fallback: leer de localStorage si backend no disponible
                 try {
                     const usuariosLocal = JSON.parse(localStorage.getItem('rg_users') || '[]')
                     const clientesDeUsuarios = usuariosLocal.map((user, index) => ({
                         id: user.id || index + 1000,
-                        nombre: user.name,
-                        correo: user.email,
-                        membresia: 'Mensual',
-                        estado: 'Activo',
-                        ultimaVisita: new Date().toISOString().split('T')[0],
-                        rutinasAsignadas: Math.floor(Math.random() * 5)
+                        usuario: user.username || user.userName || user.name || (user.email ? user.email.split('@')[0] : ''),
+                        nombre: user.name || user.nombre || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+                        correo: user.email || user.correo || '',
+                        membresia: user.membresia || 'Mensual',
+                        estado: user.estado || 'Activo',
+                        ultimaVisita: user.ultimaVisita || new Date().toISOString().split('T')[0],
+                        rutinasAsignadas: user.rutinasAsignadas ?? Math.floor(Math.random() * 5)
                     }))
-                    const todosLosClientes = [...clientesIniciales]
-                    clientesDeUsuarios.forEach(clienteUsuario => {
-                        if (!todosLosClientes.some(c => c.correo === clienteUsuario.correo)) {
-                            todosLosClientes.push(clienteUsuario)
-                        }
-                    })
-                    if (mounted) setClientes(todosLosClientes)
+                    if (mounted) setClientes(clientesDeUsuarios)
                 } catch (err) {
                     console.error('Error cargando usuarios fallback:', err)
                 }
@@ -209,6 +160,7 @@ export default function ClientesTab() {
         const q = busqueda.trim().toLowerCase()
         const coincideBusqueda =
             q === '' ||
+            (cliente.usuario && cliente.usuario.toLowerCase().includes(q)) ||
             cliente.nombre.toLowerCase().includes(q) ||
             cliente.correo.toLowerCase().includes(q)
         const coincideMembresia =
@@ -239,6 +191,7 @@ export default function ClientesTab() {
             const id = created?.id || created?._id || Date.now()
             const cliente = {
                 id,
+                usuario: created.username || created.userName || created.name || (newUser.email ? newUser.email.split('@')[0] : ''),
                 nombre: created.name || newUser.nombre,
                 correo: created.email || newUser.email,
                 membresia: newUser.membresia,
@@ -361,7 +314,9 @@ export default function ClientesTab() {
                 <Table variant="simple">
                     <Thead>
                         <Tr>
-                            <Th>Nombre</Th>
+                            <Th>ID</Th>
+                            <Th>Usuario</Th>
+                            <Th>Correo</Th>
                             <Th>Membresía</Th>
                             <Th>Estado</Th>
                             <Th>Última Visita</Th>
@@ -372,11 +327,12 @@ export default function ClientesTab() {
                     <Tbody>
                         {clientesFiltrados.map((cliente) => (
                             <Tr key={cliente.id}>
+                                <Td>{cliente.id}</Td>
                                 <Td>
-                                    <Text color="gray.600" fontWeight="medium">{cliente.nombre}</Text>
-                                    <Text fontSize="sm" color="gray.500">
-                                        {cliente.correo}
-                                    </Text>
+                                    <Text color="gray.600" fontWeight="medium">{cliente.usuario || cliente.nombre}</Text>
+                                </Td>
+                                <Td>
+                                    <Text fontSize="sm" color="gray.500">{cliente.correo}</Text>
                                 </Td>
                                 <Td>
                                     <Badge colorScheme={cliente.membresia === 'Premium' ? 'purple' : 'gray'}>
