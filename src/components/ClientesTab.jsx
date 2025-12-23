@@ -1,6 +1,6 @@
 // ClientesTab.jsx
 import React, { useState, useEffect } from 'react'
-import api, { createUsuario, deleteUsuario, getRutinasUsuario, assignRutinaToUsuario, getRutinas } from '../utils/api'
+import { usuariosAPI } from '../services/api'
 import {
     Box,
     Table,
@@ -115,7 +115,7 @@ export default function ClientesTab() {
 
         async function fetchUsuarios() {
             try {
-                const usuarios = await api.getUsuarios()
+                const usuarios = await usuariosAPI.getUsuarios()
                 // Mapear usuarios a formato de cliente
                 const clientesDeUsuarios = (usuarios || []).map((user, index) => ({
                     id: user.id || user._id || index + 1000,
@@ -187,7 +187,7 @@ export default function ClientesTab() {
         }
         try {
             const payload = { name: newUser.nombre, email: newUser.email, password: newUser.password }
-            const created = await createUsuario(payload)
+            const created = await usuariosAPI.register(payload)
             const id = created?.id || created?._id || Date.now()
             const cliente = {
                 id,
@@ -211,7 +211,7 @@ export default function ClientesTab() {
 
     async function handleEliminarUsuario(cliente) {
         try {
-            await deleteUsuario(cliente.id)
+            await usuariosAPI.deleteUsuario(cliente.id)
             setClientes(prev => prev.filter(c => c.id !== cliente.id))
             toast({ title: 'Usuario eliminado', status: 'info', duration: 2000 })
         } catch (err) {
