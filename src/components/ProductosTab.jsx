@@ -62,16 +62,20 @@ export default function ProductosTab() {
             try {
                 setLoading(true)
                 const data = await productosAPI.getProductos()
-                setProductos(data)
+                setProductos(Array.isArray(data) ? data : [])
             } catch (error) {
                 console.error('Error cargando productos:', error)
                 toast({ title: 'Error cargando productos', status: 'error', duration: 3000 })
+                setProductos([])
             } finally {
                 setLoading(false)
             }
         }
         
         cargarProductos()
+        // Recargar cada 10 segundos para mantener sincronizado
+        const interval = setInterval(cargarProductos, 10000)
+        return () => clearInterval(interval)
     }, [])
 
     const limpiarBusqueda = () => {
@@ -80,10 +84,10 @@ export default function ProductosTab() {
     }
 
     const productosFiltrados = productos.filter(p => {
-        const matchBusqueda = p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || 
-                             p.descripcion.toLowerCase().includes(busqueda.toLowerCase())
+        const matchBusqueda = (p.nombre || '').toLowerCase().includes(busqueda.toLowerCase()) || 
+                             (p.descripcion || '').toLowerCase().includes(busqueda.toLowerCase())
         const matchCategoria = filtroCategoria === 'todos' || 
-                              p.categoria.toLowerCase() === filtroCategoria.toLowerCase()
+                              (p.categoria || '').toLowerCase() === filtroCategoria.toLowerCase()
         return matchBusqueda && matchCategoria
     })
 
@@ -145,7 +149,11 @@ export default function ProductosTab() {
                 toast({ title: 'Producto actualizado', status: 'success', duration: 2000 })
             }
             onClose()
+            // Recargar productos para sincronizar con backend
+            const data = await productosAPI.getProductos()
+            setProductos(data)
         } catch (error) {
+            console.error('Error guardando producto:', error)
             toast({ title: 'Error guardando producto', status: 'error', duration: 2000 })
         }
     }
@@ -225,18 +233,18 @@ export default function ProductosTab() {
                                 <Tr key={p.id} _hover={{ bg: "gray.50" }}>
                                     <Td>
                                         <VStack align="start" spacing={1}>
-                                            <Text fontWeight="medium" color="gray.800">{p.nombre}</Text>
-                                            <Text fontSize="sm" color="gray.500">{p.descripcion}</Text>
+                                            <Text fontWeight="medium" color="gray.800">{p.nombre || 'Sin nombre'}</Text>
+                                            <Text fontSize="sm" color="gray.500">{p.descripcion || 'Sin descripción'}</Text>
                                         </VStack>
                                     </Td>
                                     <Td>
-                                        <Tag colorScheme="blue">{p.categoria}</Tag>
+                                        <Tag colorScheme="blue">{p.categoria || 'Sin categoría'}</Tag>
                                     </Td>
-                                    <Td color="gray.700">{p.stock} unidades</Td>
-                                    <Td color="gray.700">${p.precio_venta}</Td>
+                                    <Td color="gray.700">{p.stock || 0} unidades</Td>
+                                    <Td color="gray.700">COP ${(p.precio_venta || 0).toLocaleString('es-CO')}</Td>
                                     <Td>
-                                        <Tag colorScheme={p.stock <= p.stock_minimo ? 'red' : 'green'}>
-                                            {p.stock <= p.stock_minimo ? 'Stock Bajo' : 'Disponible'}
+                                        <Tag colorScheme={(p.stock || 0) <= (p.stock_minimo || 0) ? 'red' : 'green'}>
+                                            {(p.stock || 0) <= (p.stock_minimo || 0) ? 'Stock Bajo' : 'Disponible'}
                                         </Tag>
                                     </Td>
                                     <Td>
@@ -317,13 +325,13 @@ export default function ProductosTab() {
                             </HStack>
                             <HStack>
                                 <FormControl>
-                                    <FormLabel>Precio Compra</FormLabel>
+                                    <FormLabel>Precio Compra (COP)</FormLabel>
                                     <NumberInput min={0} value={selected?.precio_compra || 0} onChange={(val) => setSelected(s => ({ ...s, precio_compra: Number(val) }))}>
                                         <NumberInputField />
                                     </NumberInput>
                                 </FormControl>
                                 <FormControl>
-                                    <FormLabel>Precio Venta</FormLabel>
+                                    <FormLabel>Precio Venta (COP)</FormLabel>
                                     <NumberInput min={0} value={selected?.precio_venta || 0} onChange={(val) => setSelected(s => ({ ...s, precio_venta: Number(val) }))}>
                                         <NumberInputField />
                                     </NumberInput>

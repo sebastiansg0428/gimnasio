@@ -1,6 +1,6 @@
 // ClientesTab.jsx
 import React, { useState, useEffect } from 'react'
-import { usuariosAPI } from '../services/api'
+import { usuariosAPI, authAPI } from '../services/api'
 import {
     Box,
     Table,
@@ -119,13 +119,13 @@ export default function ClientesTab() {
                 // Mapear usuarios a formato de cliente
                 const clientesDeUsuarios = (usuarios || []).map((user, index) => ({
                     id: user.id || user._id || index + 1000,
-                    usuario: user.username || user.userName || user.name || (user.email ? user.email.split('@')[0] : ''),
-                    nombre: user.name || user.nombre || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+                    usuario: user.nombre || user.name || user.username || (user.email ? user.email.split('@')[0] : ''),
+                    nombre: user.nombre || user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
                     correo: user.email || user.correo || '',
                     membresia: user.membresia || 'Mensual',
                     estado: user.estado || 'Activo',
                     ultimaVisita: user.ultimaVisita || new Date().toISOString().split('T')[0],
-                    rutinasAsignadas: user.rutinasAsignadas ?? Math.floor(Math.random() * 5),
+                    rutinasAsignadas: user.rutinasAsignadas ?? 0,
                 }))
 
                 if (mounted) setClientes(clientesDeUsuarios)
@@ -186,26 +186,39 @@ export default function ClientesTab() {
             return
         }
         try {
-            const payload = { name: newUser.nombre, email: newUser.email, password: newUser.password }
-            const created = await usuariosAPI.register(payload)
-            const id = created?.id || created?._id || Date.now()
-            const cliente = {
-                id,
-                usuario: created.username || created.userName || created.name || (newUser.email ? newUser.email.split('@')[0] : ''),
-                nombre: created.name || newUser.nombre,
-                correo: created.email || newUser.email,
-                membresia: newUser.membresia,
-                estado: 'Activo',
-                ultimaVisita: new Date().toISOString().split('T')[0],
-                rutinasAsignadas: 0,
+            const payload = { 
+                nombre: newUser.nombre, 
+                email: newUser.email, 
+                password: newUser.password,
+                membresia: newUser.membresia
             }
-            setClientes(prev => [cliente, ...prev])
-            toast({ title: 'Usuario creado', status: 'success', duration: 2000 })
+            console.log('Enviando payload:', payload)
+            const created = await authAPI.register(payload)
+            console.log('Usuario creado:', created)
+            toast({ title: 'Usuario creado exitosamente', status: 'success', duration: 2000 })
             setNewUser({ nombre: '', email: '', password: '', membresia: 'Mensual' })
             closeModal()
+            // Recargar usuarios
+            const usuarios = await usuariosAPI.getUsuarios()
+            const clientesFormateados = usuarios.map(user => ({
+                id: user.id,
+                usuario: user.nombre || user.name || user.username || (user.email ? user.email.split('@')[0] : ''),
+                nombre: user.nombre || user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+                correo: user.email || user.correo || '',
+                membresia: user.membresia || 'Mensual',
+                estado: user.estado || 'Activo',
+                ultimaVisita: user.ultima_visita || new Date().toISOString().split('T')[0],
+                rutinasAsignadas: user.rutinas_asignadas || 0
+            }))
+            setClientes(clientesFormateados)
         } catch (err) {
-            console.error(err)
-            toast({ title: 'Error al crear usuario', status: 'error', duration: 3000 })
+            console.error('Error completo:', err)
+            toast({ 
+                title: 'Error al crear usuario', 
+                description: err.message || 'Error desconocido',
+                status: 'error', 
+                duration: 3000 
+            })
         }
     }
 
