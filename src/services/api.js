@@ -13,10 +13,18 @@ async function apiRequest(endpoint, options = {}) {
 
     try {
         const response = await fetch(url, config)
-        const data = await response.json()
+        const contentType = response.headers.get('content-type') || ''
+        let data = null
+        
+        if (contentType.includes('application/json')) {
+            data = await response.json()
+        } else {
+            data = await response.text()
+        }
         
         if (!response.ok) {
-            throw new Error(data.message || 'Error en la petición')
+            const msg = data?.message || (typeof data === 'string' ? data : 'Error en la petición')
+            throw new Error(msg)
         }
         
         return data

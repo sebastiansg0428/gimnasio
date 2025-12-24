@@ -1,10 +1,12 @@
 import { Routes, Route, Navigate, Link as RouterLink } from 'react-router-dom'
 import { Box, Flex, Heading, Link, Spacer, Container, useColorModeValue } from '@chakra-ui/react'
+import { useEffect } from 'react'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
+import { checkBackendConnection } from './config'
 import './App.css'
 
 function App() {
@@ -15,6 +17,11 @@ function App() {
   )
   const headerBg = useColorModeValue('white', 'rgba(255,255,255,0.04)')
   const textColor = useColorModeValue('gray.800', 'white')
+
+  // Verificar conexión con el backend al cargar
+  useEffect(() => {
+    checkBackendConnection()
+  }, [])
 
   return (
     <Box minH="100vh" bgGradient={bgGradient} color={textColor} className="gym-gradient">

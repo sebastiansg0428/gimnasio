@@ -25,6 +25,7 @@ import {
 } from '@chakra-ui/react'
 import ClientesTab from '../components/ClientesTab'
 import RutinasTab from '../components/RutinasTab'
+import EjerciciosTab from '../components/EjerciciosTab'
 import PagosTab from '../components/PagosTab'
 import EstadisticasTab from '../components/EstadisticasTab'
 import PerfilTab from '../components/PerfilTab'
@@ -33,7 +34,7 @@ import EntrenadoresTab from '../components/EntrenadoresTab'
 import ProductosTab from '../components/ProductosTab'
 import { useNavigate } from 'react-router-dom'
 import { logout, getCurrentUser } from '../utils/auth'
-import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck, FiBox } from 'react-icons/fi'
+import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck, FiBox, FiTarget } from 'react-icons/fi'
 import { useState } from 'react'
 
 // Datos de ejemplo
@@ -257,6 +258,18 @@ export default function Dashboard() {
                         Rutinas
                     </Button>
                     <Button
+                        leftIcon={<FiTarget />}
+                        w="full"
+                        justifyContent="start"
+                        variant={currentTab === 'ejercicios' ? 'solid' : 'ghost'}
+                        colorScheme={currentTab === 'ejercicios' ? 'green' : 'gray'}
+                        onClick={() => setCurrentTab('ejercicios')}
+                        _hover={{ bg: currentTab === 'ejercicios' ? 'green.500' : 'gray.100', transform: 'translateX(4px)' }}
+                        transition="all 0.2s"
+                    >
+                        Ejercicios
+                    </Button>
+                    <Button
                         leftIcon={<FiDollarSign />}
                         w="full"
                         justifyContent="start"
@@ -323,6 +336,7 @@ export default function Dashboard() {
                     {currentTab === 'home' && <HomeTab />}
                     {currentTab === 'clientes' && <ClientesTab />}
                     {currentTab === 'rutinas' && <RutinasTab />}
+                    {currentTab === 'ejercicios' && <EjerciciosTab />}
                     {currentTab === 'pagos' && <PagosTab />}
                     {currentTab === 'estadisticas' && <EstadisticasTab />}
                     {currentTab === 'entrenadores' && <EntrenadoresTab />}
