@@ -29,10 +29,17 @@ import {
     InputGroup,
     InputLeftElement,
     InputRightElement,
+    SimpleGrid,
+    Stat,
+    StatLabel,
+    StatNumber,
+    StatHelpText,
+    Divider,
 } from '@chakra-ui/react'
-import { FiPlus, FiSearch, FiEdit, FiTrash2, FiX, FiShoppingCart } from 'react-icons/fi'
-import { useState, useRef, useEffect } from 'react'
+import { FiPlus, FiSearch, FiEdit, FiTrash2, FiX, FiShoppingCart, FiTrendingUp, FiPackage, FiDollarSign } from 'react-icons/fi'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { productosAPI } from '../services/api'
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 export default function ProductosTab() {
     const [productos, setProductos] = useState([])
@@ -90,6 +97,44 @@ export default function ProductosTab() {
                               (p.categoria || '').toLowerCase() === filtroCategoria.toLowerCase()
         return matchBusqueda && matchCategoria
     })
+
+    // Estadísticas calculadas
+    const estadisticas = useMemo(() => {
+        const totalProductos = productos.length
+        const totalStock = productos.reduce((sum, p) => sum + (p.stock || 0), 0)
+        const valorInventario = productos.reduce((sum, p) => sum + ((p.precio || 0) * (p.stock || 0)), 0)
+        const productosAgotados = productos.filter(p => (p.stock || 0) === 0).length
+        const productosBajoStock = productos.filter(p => (p.stock || 0) > 0 && (p.stock || 0) <= 10).length
+
+        // Datos por categoría para gráfica de barras
+        const categorias = {}
+        productos.forEach(p => {
+            const cat = p.categoria || 'sin categoría'
+            if (!categorias[cat]) {
+                categorias[cat] = { nombre: cat, cantidad: 0, valor: 0 }
+            }
+            categorias[cat].cantidad++
+            categorias[cat].valor += (p.precio || 0) * (p.stock || 0)
+        })
+        const datosCategorias = Object.values(categorias)
+
+        // Datos para gráfica de pie (stock)
+        const datosStock = [
+            { name: 'En Stock', value: totalStock - productosAgotados, color: '#48BB78' },
+            { name: 'Bajo Stock', value: productosBajoStock, color: '#ED8936' },
+            { name: 'Agotados', value: productosAgotados, color: '#F56565' }
+        ]
+
+        return {
+            totalProductos,
+            totalStock,
+            valorInventario,
+            productosAgotados,
+            productosBajoStock,
+            datosCategorias,
+            datosStock
+        }
+    }, [productos])
 
     function handleNuevo() {
         setSelected({ 
@@ -160,6 +205,111 @@ export default function ProductosTab() {
 
     return (
         <Box>
+            {/* Tarjetas de Estadísticas */}
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4} mb={6}>
+                <Box bg="white" p={5} borderRadius="lg" boxShadow="sm" borderLeft="4px solid" borderLeftColor="green.400">
+                    <Stat>
+                        <HStack justify="space-between" mb={2}>
+                            <StatLabel color="gray.600">Total Productos</StatLabel>
+                            <FiPackage size={24} color="#48BB78" />
+                        </HStack>
+                        <StatNumber fontSize="3xl" color="green.600">{estadisticas.totalProductos}</StatNumber>
+                        <StatHelpText>En catálogo</StatHelpText>
+                    </Stat>
+                </Box>
+
+                <Box bg="white" p={5} borderRadius="lg" boxShadow="sm" borderLeft="4px solid" borderLeftColor="blue.400">
+                    <Stat>
+                        <HStack justify="space-between" mb={2}>
+                            <StatLabel color="gray.600">Stock Total</StatLabel>
+                            <FiShoppingCart size={24} color="#4299E1" />
+                        </HStack>
+                        <StatNumber fontSize="3xl" color="blue.600">{estadisticas.totalStock}</StatNumber>
+                        <StatHelpText>Unidades disponibles</StatHelpText>
+                    </Stat>
+                </Box>
+
+                <Box bg="white" p={5} borderRadius="lg" boxShadow="sm" borderLeft="4px solid" borderLeftColor="purple.400">
+                    <Stat>
+                        <HStack justify="space-between" mb={2}>
+                            <StatLabel color="gray.600">Valor Inventario</StatLabel>
+                            <FiDollarSign size={24} color="#805AD5" />
+                        </HStack>
+                        <StatNumber fontSize="3xl" color="purple.600">
+                            ${estadisticas.valorInventario.toLocaleString('es-CO')}
+                        </StatNumber>
+                        <StatHelpText>Valor total en stock</StatHelpText>
+                    </Stat>
+                </Box>
+
+                <Box bg="white" p={5} borderRadius="lg" boxShadow="sm" borderLeft="4px solid" borderLeftColor="orange.400">
+                    <Stat>
+                        <HStack justify="space-between" mb={2}>
+                            <StatLabel color="gray.600">Alertas Stock</StatLabel>
+                            <FiTrendingUp size={24} color="#DD6B20" />
+                        </HStack>
+                        <StatNumber fontSize="3xl" color="orange.600">{estadisticas.productosBajoStock}</StatNumber>
+                        <StatHelpText>{estadisticas.productosAgotados} agotados</StatHelpText>
+                    </Stat>
+                </Box>
+            </SimpleGrid>
+
+            {/* Gráficas */}
+            <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mb={6}>
+                {/* Gráfica de Barras - Productos por Categoría */}
+                <Box bg="white" p={5} borderRadius="lg" boxShadow="sm">
+                    <Text fontSize="lg" fontWeight="bold" mb={4} color="gray.700">
+                        Productos por Categoría
+                    </Text>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={estadisticas.datosCategorias}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="nombre" />
+                            <YAxis />
+                            <Tooltip 
+                                formatter={(value, name) => {
+                                    if (name === 'valor') return [`$${value.toLocaleString('es-CO')}`, 'Valor']
+                                    return [value, 'Cantidad']
+                                }}
+                            />
+                            <Legend />
+                            <Bar dataKey="cantidad" fill="#48BB78" name="Cantidad" />
+                            <Bar dataKey="valor" fill="#4299E1" name="Valor ($)" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </Box>
+
+                {/* Gráfica de Pie - Estado del Stock */}
+                <Box bg="white" p={5} borderRadius="lg" boxShadow="sm">
+                    <Text fontSize="lg" fontWeight="bold" mb={4} color="gray.700">
+                        Estado del Inventario
+                    </Text>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                            <Pie
+                                data={estadisticas.datosStock}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={({ name, value }) => `${name}: ${value}`}
+                                outerRadius={100}
+                                fill="#8884d8"
+                                dataKey="value"
+                            >
+                                {estadisticas.datosStock.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </Box>
+            </SimpleGrid>
+
+            <Divider mb={6} />
+
+            {/* Controles y tabla existentes */}
             <HStack mb={6} spacing={4}>
                 <Button leftIcon={<FiPlus />} colorScheme="green" onClick={handleNuevo} minW="fit-content" px={4}>
                     Nuevo Producto

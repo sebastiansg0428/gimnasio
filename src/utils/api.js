@@ -394,10 +394,10 @@ export async function getClientesEntrenador(entrenadorId) {
 }
 
 export async function asignarClienteEntrenador(entrenadorId, usuarioId, data = {}) {
-    const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/clientes/${usuarioId}`, {
+    const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/clientes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ usuario_id: usuarioId, ...data }),
     })
     return handleResponse(res)
 }
