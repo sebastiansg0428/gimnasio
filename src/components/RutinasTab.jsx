@@ -61,10 +61,15 @@ export default function RutinasTab() {
         id: r.id ?? r._id ?? r.insertId ?? r.id_rutina ?? null,
         nombre: r.nombre ?? r.name ?? '',
         descripcion: r.descripcion ?? r.description ?? r.desc ?? '',
-        objetivo: r.objetivo ?? r.objetivo_presupuestado ?? '',
-        duracion_semanas: r.duracion_semanas ?? r.duracionSemanas ?? r.duracion_min ?? r.duracionMin ?? null,
-        frecuencia_por_semana: r.frecuencia_por_semana ?? r.frecuencia ?? null,
-        nivel: (r.nivel ?? r.level ?? '').toString(),
+        objetivo: r.objetivo ?? '',
+        nivel: r.nivel ?? '',
+        duracion_estimada: r.duracion_estimada ?? r.duracion_semanas ?? r.duracionMin ?? 60,
+        frecuencia_semanal: r.frecuencia_semanal ?? r.frecuencia_por_semana ?? r.frecuencia ?? 3,
+        usuario_id: r.usuario_id ?? null,
+        tipo: r.tipo ?? 'publica',
+        imagen_url: r.imagen_url ?? '',
+        popularidad: r.popularidad ?? 0,
+        estado: r.estado ?? 'activo',
     })
 
     useEffect(() => {
@@ -118,7 +123,18 @@ export default function RutinasTab() {
     })
 
     function handleNuevo() {
-        setSelected({ id: null, nombre: '', nivel: 'principiante', descripcion: '', objetivo: '', duracion_semanas: 4, frecuencia_por_semana: 3 })
+        setSelected({ 
+            id: null, 
+            nombre: '', 
+            nivel: 'intermedio', 
+            descripcion: '', 
+            objetivo: 'tonificacion', 
+            duracion_estimada: 60, 
+            frecuencia_semanal: 3,
+            tipo: 'publica',
+            imagen_url: '',
+            estado: 'activo'
+        })
         onOpen()
     }
 
@@ -161,11 +177,13 @@ export default function RutinasTab() {
                                 descripcion: selected.descripcion,
                                 nivel: selected.nivel,
                                 objetivo: selected.objetivo,
-                                duracion_semanas: selected.duracion_semanas,
-                                frecuencia_por_semana: selected.frecuencia_por_semana,
+                                duracion_estimada: selected.duracion_estimada,
+                                frecuencia_semanal: selected.frecuencia_semanal,
+                                tipo: selected.tipo || 'publica',
+                                imagen_url: selected.imagen_url || '',
+                                estado: selected.estado || 'activo'
                             }
                             const created = await createRutina(payload)
-                            // si backend devuelve el objeto creado con id, normalizar y agregar
                             const newItem = normalizeRutina(
                                 (created && typeof created === 'object' && (created.id || created._id || created.insertId))
                                     ? { ...selected, ...created }
@@ -179,12 +197,22 @@ export default function RutinasTab() {
                                 descripcion: selected.descripcion,
                                 nivel: selected.nivel,
                                 objetivo: selected.objetivo,
-                                duracion_semanas: selected.duracion_semanas,
-                                frecuencia_por_semana: selected.frecuencia_por_semana,
+                                duracion_estimada: selected.duracion_estimada,
+                                frecuencia_semanal: selected.frecuencia_semanal,
+                                tipo: selected.tipo || 'publica',
+                                imagen_url: selected.imagen_url || '',
+                                estado: selected.estado || 'activo'
                             }
                             const updated = await updateRutina(selected.id, payload)
-                            const updatedItem = normalizeRutina(updated || selected)
-                            setRutinas(prev => prev.map(r => (r.id === (updatedItem.id || selected.id) ? updatedItem : r)))
+                            
+                            // Conservar todos los datos de selected y actualizar con la respuesta del backend
+                            const updatedItem = normalizeRutina({
+                                ...selected,
+                                ...(updated || {}),
+                                id: selected.id // Asegurar que mantenemos el ID original
+                            })
+                            
+                            setRutinas(prev => prev.map(r => (r.id === selected.id ? updatedItem : r)))
                             toast({ title: 'Rutina actualizada', status: 'success', duration: 2000 })
                         }
                 onClose()
@@ -257,8 +285,10 @@ export default function RutinasTab() {
                             <Th color="gray.700">Nombre</Th>
                             <Th color="gray.700">Nivel</Th>
                             <Th color="gray.700">Objetivo</Th>
-                            <Th color="gray.700">Duración (semanas)</Th>
+                            <Th color="gray.700">Duración (min)</Th>
                             <Th color="gray.700">Frecuencia / semana</Th>
+                            <Th color="gray.700">Tipo</Th>
+                            <Th color="gray.700">Estado</Th>
                             <Th color="gray.700">Descripción</Th>
                             <Th></Th>
                         </Tr>
@@ -275,10 +305,20 @@ export default function RutinasTab() {
                                     </Tag>
                                 </Td>
                                 <Td color="gray.700">{r.objetivo || '-'}</Td>
-                                <Td color="gray.700">{r.duracion_semanas ?? r.duracionSemanas ?? '-'}</Td>
-                                <Td color="gray.700">{(r.frecuencia_por_semana ?? r.frecuencia) || '-'}</Td>
+                                <Td color="gray.700">{r.duracion_estimada ?? '-'} min</Td>
+                                <Td color="gray.700">{r.frecuencia_semanal || '-'} días</Td>
                                 <Td>
-                                    <Text noOfLines={2} maxW="40ch" color="gray.600">{r.descripcion}</Text>
+                                    <Tag colorScheme={r.tipo === 'publica' ? 'blue' : 'purple'}>
+                                        {r.tipo}
+                                    </Tag>
+                                </Td>
+                                <Td>
+                                    <Tag colorScheme={r.estado === 'activo' ? 'green' : 'gray'}>
+                                        {r.estado}
+                                    </Tag>
+                                </Td>
+                                <Td>
+                                    <Text noOfLines={2} maxW="30ch" color="gray.600">{r.descripcion}</Text>
                                 </Td>
                                 <Td>
                                     <HStack>
@@ -320,7 +360,7 @@ export default function RutinasTab() {
                             </FormControl>
                             <FormControl>
                                 <FormLabel>Nivel</FormLabel>
-                                <Select value={selected?.nivel || 'principiante'} onChange={(e) => setSelected(s => ({ ...s, nivel: e.target.value }))}>
+                                <Select value={selected?.nivel || 'intermedio'} onChange={(e) => setSelected(s => ({ ...s, nivel: e.target.value }))}>
                                     <option value="principiante">Principiante</option>
                                     <option value="intermedio">Intermedio</option>
                                     <option value="avanzado">Avanzado</option>
@@ -328,31 +368,56 @@ export default function RutinasTab() {
                             </FormControl>
                             <FormControl>
                                 <FormLabel>Objetivo</FormLabel>
-                                <Input value={selected?.objetivo || ''} onChange={(e) => setSelected(s => ({ ...s, objetivo: e.target.value }))} />
+                                <Select value={selected?.objetivo || 'tonificacion'} onChange={(e) => setSelected(s => ({ ...s, objetivo: e.target.value }))}>
+                                    <option value="tonificacion">Tonificación</option>
+                                    <option value="hipertrofia">Hipertrofia</option>
+                                    <option value="fuerza">Fuerza</option>
+                                    <option value="perdida_peso">Pérdida de Peso</option>
+                                    <option value="cardio">Cardio</option>
+                                </Select>
                             </FormControl>
                             <HStack>
                                 <FormControl>
-                                    <FormLabel>Duración (semanas)</FormLabel>
-                                    <NumberInput min={1} value={selected?.duracion_semanas ?? 4} onChange={(val) => setSelected(s => ({ ...s, duracion_semanas: Number(val) }))}>
+                                    <FormLabel>Duración Estimada (min)</FormLabel>
+                                    <NumberInput min={15} max={180} value={selected?.duracion_estimada ?? 60} onChange={(val) => setSelected(s => ({ ...s, duracion_estimada: Number(val) }))}>
                                         <NumberInputField />
                                     </NumberInput>
                                 </FormControl>
                                 <FormControl>
-                                    <FormLabel>Frecuencia / semana</FormLabel>
-                                    <NumberInput min={1} value={selected?.frecuencia_por_semana ?? 3} onChange={(val) => setSelected(s => ({ ...s, frecuencia_por_semana: Number(val) }))}>
+                                    <FormLabel>Frecuencia Semanal (días)</FormLabel>
+                                    <NumberInput min={1} max={7} value={selected?.frecuencia_semanal ?? 3} onChange={(val) => setSelected(s => ({ ...s, frecuencia_semanal: Number(val) }))}>
                                         <NumberInputField />
                                     </NumberInput>
                                 </FormControl>
                             </HStack>
                             <FormControl>
+                                <FormLabel>Tipo</FormLabel>
+                                <Select value={selected?.tipo || 'publica'} onChange={(e) => setSelected(s => ({ ...s, tipo: e.target.value }))}>
+                                    <option value="publica">Pública</option>
+                                    <option value="privada">Privada</option>
+                                </Select>
+                            </FormControl>
+                            <FormControl>
+                                <FormLabel>Estado</FormLabel>
+                                <Select value={selected?.estado || 'activo'} onChange={(e) => setSelected(s => ({ ...s, estado: e.target.value }))}>
+                                    <option value="activo">Activo</option>
+                                    <option value="inactivo">Inactivo</option>
+                                </Select>
+                            </FormControl>
+                            <FormControl>
                                 <FormLabel>Descripción</FormLabel>
-                                <Textarea value={selected?.descripcion || ''} onChange={(e) => setSelected(s => ({ ...s, descripcion: e.target.value }))} />
+                                <Textarea 
+                                    value={selected?.descripcion || ''} 
+                                    onChange={(e) => setSelected(s => ({ ...s, descripcion: e.target.value }))} 
+                                    placeholder="Describe los beneficios y características de esta rutina..."
+                                    rows={3}
+                                />
                             </FormControl>
                         </VStack>
                     </ModalBody>
                     <ModalFooter>
                         <Button variant="ghost" mr={3} onClick={onClose}>Cancelar</Button>
-                        <Button colorScheme="purple" onClick={handleSave}>Guardar</Button>
+                        <Button colorScheme="purple" onClick={handleSave}>💾 Guardar</Button>
                     </ModalFooter>
                 </ModalContent>
             </Modal>
