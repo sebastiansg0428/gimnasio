@@ -48,6 +48,8 @@ export default function ClientesModal({ isOpen, onClose, entrenador }) {
                 getClientesEntrenador(entrenador.id),
                 getUsuarios(),
             ])
+            console.log('📋 Clientes del entrenador recibidos:', clientesData)
+            console.log('👥 Primer cliente estructura:', clientesData[0])
             setClientes(Array.isArray(clientesData) ? clientesData : [])
             setTodosUsuarios(Array.isArray(usuariosData) ? usuariosData : [])
         } catch (err) {
@@ -89,21 +91,35 @@ export default function ClientesModal({ isOpen, onClose, entrenador }) {
 
     async function handleQuitarCliente(usuarioId) {
         if (!window.confirm('¿Quitar este cliente del entrenador?')) return
+        
+        console.log('🗑️ Intentando quitar cliente:', {
+            entrenadorId: entrenador.id,
+            usuarioId: usuarioId,
+            url: `http://localhost:3001/entrenadores/${entrenador.id}/clientes/${usuarioId}`
+        })
+        
         setLoading(true)
         try {
-            await quitarClienteEntrenador(entrenador.id, usuarioId)
+            const resultado = await quitarClienteEntrenador(entrenador.id, usuarioId)
+            console.log('✅ Cliente removido exitosamente:', resultado)
+            
             toast({
-                title: 'Cliente removido',
-                status: 'info',
+                title: 'Cliente removido exitosamente',
+                status: 'success',
                 duration: 2000,
             })
-            setClientes((prev) => prev.filter((c) => c.id !== usuarioId))
+            
+            // Actualizar lista local
+            setClientes((prev) => prev.filter((c) => c.usuario_id !== usuarioId))
         } catch (err) {
-            console.error('Error:', err)
+            console.error('❌ Error completo al quitar cliente:', err)
+            console.error('❌ Mensaje:', err.message)
+            
             toast({
                 title: 'Error al quitar cliente',
+                description: err.message || 'No se pudo remover el cliente',
                 status: 'error',
-                duration: 3000,
+                duration: 4000,
             })
         } finally {
             setLoading(false)
@@ -112,7 +128,7 @@ export default function ClientesModal({ isOpen, onClose, entrenador }) {
 
     // Filtrar usuarios que ya no están asignados
     const usuariosDisponibles = todosUsuarios.filter(
-        (usuario) => !clientes.some((cliente) => cliente.id === usuario.id)
+        (usuario) => !clientes.some((cliente) => cliente.usuario_id === usuario.id)
     )
 
     return (
@@ -231,7 +247,7 @@ export default function ClientesModal({ isOpen, onClose, entrenador }) {
                                                     colorScheme="red"
                                                     variant="ghost"
                                                     onClick={() =>
-                                                        handleQuitarCliente(cliente.id)
+                                                        handleQuitarCliente(cliente.usuario_id)
                                                     }
                                                 />
                                             </HStack>

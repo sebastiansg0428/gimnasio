@@ -14,7 +14,6 @@ import {
     Select,
     Input,
     Textarea,
-    IconButton,
     useToast,
     Text,
     Box,
@@ -22,7 +21,7 @@ import {
     Divider,
     Avatar,
 } from '@chakra-ui/react'
-import { FiPlus, FiEdit, FiCalendar, FiCheckCircle } from 'react-icons/fi'
+import { FiCalendar, FiCheckCircle } from 'react-icons/fi'
 import { useState, useEffect } from 'react'
 import {
     getSesionesEntrenador,
@@ -43,7 +42,6 @@ export default function SesionesModal({ isOpen, onClose, entrenador }) {
         tipo: 'personalizada',
         notas: '',
     })
-    const [editandoSesion, setEditandoSesion] = useState(null)
     const toast = useToast()
 
     useEffect(() => {
@@ -60,6 +58,8 @@ export default function SesionesModal({ isOpen, onClose, entrenador }) {
                 getSesionesEntrenador(entrenador.id),
                 getClientesEntrenador(entrenador.id),
             ])
+            console.log('Sesiones recibidas:', sesionesData)
+            console.log('Clientes recibidos:', clientesData)
             setSesiones(Array.isArray(sesionesData) ? sesionesData : [])
             setClientes(Array.isArray(clientesData) ? clientesData : [])
         } catch (err) {
@@ -85,55 +85,63 @@ export default function SesionesModal({ isOpen, onClose, entrenador }) {
         }
 
         setLoading(true)
-        try {
-            await createSesionEntrenador(entrenador.id, nuevaSesion)
-            toast({
-                title: 'Sesión creada exitosamente',
-                status: 'success',
-                duration: 2000,
-            })
-            cargarDatos()
-            setNuevaSesion({
-                usuario_id: '',
-                fecha: '',
-                hora: '',
-                duracion_minutos: 60,
-                tipo: 'personalizada',
-                notas: '',
-            })
-        } catch (err) {
-            console.error('Error:', err)
-            toast({
-                title: 'Error al crear sesión',
-                description: err.message,
-                status: 'error',
-                duration: 3000,
-            })
-        } finally {
-            setLoading(false)
-        }
+        
+        // Usar setTimeout para evitar manipulación síncrona del DOM
+        setTimeout(async () => {
+            try {
+                await createSesionEntrenador(entrenador.id, nuevaSesion)
+                toast({
+                    title: 'Sesión creada exitosamente',
+                    status: 'success',
+                    duration: 2000,
+                })
+                await cargarDatos()
+                setNuevaSesion({
+                    usuario_id: '',
+                    fecha: '',
+                    hora: '',
+                    duracion_minutos: 60,
+                    tipo: 'personalizada',
+                    notas: '',
+                })
+            } catch (err) {
+                console.error('Error:', err)
+                toast({
+                    title: 'Error al crear sesión',
+                    description: err.message,
+                    status: 'error',
+                    duration: 3000,
+                })
+            } finally {
+                setLoading(false)
+            }
+        }, 0)
     }
 
     async function handleActualizarEstado(sesionId, nuevoEstado) {
         setLoading(true)
-        try {
-            await updateSesion(sesionId, { estado: nuevoEstado })
-            toast({
-                title: 'Estado actualizado',
-                status: 'success',
-                duration: 2000,
-            })
-            cargarDatos()
-        } catch (err) {
-            console.error('Error:', err)
-            toast({
-                title: 'Error al actualizar estado',
-                status: 'error',
-                duration: 3000,
-            })
-        } finally {
-            setLoading(false)
-        }
+        
+        // Usar setTimeout para evitar manipulación síncrona del DOM
+        setTimeout(async () => {
+            try {
+                await updateSesion(sesionId, { estado: nuevoEstado })
+                toast({
+                    title: 'Estado actualizado',
+                    status: 'success',
+                    duration: 2000,
+                })
+                await cargarDatos()
+            } catch (err) {
+                console.error('Error:', err)
+                toast({
+                    title: 'Error al actualizar estado',
+                    status: 'error',
+                    duration: 3000,
+                })
+            } finally {
+                setLoading(false)
+            }
+        }, 0)
     }
 
     const getEstadoColor = (estado) => {
@@ -149,16 +157,11 @@ export default function SesionesModal({ isOpen, onClose, entrenador }) {
     const getTipoColor = (tipo) => {
         const colores = {
             personalizada: 'purple',
-            grupal: 'cyan',
+            grupal: 'blue',
             evaluacion: 'orange',
         }
         return colores[tipo] || 'gray'
     }
-
-    // Ordenar sesiones por fecha (más recientes primero)
-    const sesionesOrdenadas = [...sesiones].sort(
-        (a, b) => new Date(b.fecha) - new Date(a.fecha)
-    )
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} size="xl" scrollBehavior="inside">
@@ -168,23 +171,23 @@ export default function SesionesModal({ isOpen, onClose, entrenador }) {
                     <HStack>
                         <FiCalendar />
                         <Text>
-                            Sesiones de {entrenador?.nombre} {entrenador?.apellido}
+                            Sesiones de {entrenador?.nombre || 'Entrenador'}
                         </Text>
                     </HStack>
                 </ModalHeader>
                 <ModalCloseButton />
                 <ModalBody>
                     <VStack spacing={4} align="stretch">
-                        {/* Formulario para crear nueva sesión */}
-                        <Box bg="green.50" p={4} borderRadius="md">
-                            <Text fontWeight="bold" mb={3} color="green.700">
+                        {/* Formulario Nueva Sesión */}
+                        <Box bg="blue.50" p={4} borderRadius="md">
+                            <Text fontWeight="bold" mb={3} color="blue.700">
                                 Programar Nueva Sesión
                             </Text>
-                            <VStack spacing={3}>
+                            <VStack spacing={3} align="stretch">
                                 <FormControl isRequired>
                                     <FormLabel fontSize="sm">Cliente</FormLabel>
                                     <Select
-                                        placeholder="Seleccionar cliente..."
+                                        placeholder="Selecciona un cliente"
                                         value={nuevaSesion.usuario_id}
                                         onChange={(e) =>
                                             setNuevaSesion((prev) => ({
@@ -195,8 +198,11 @@ export default function SesionesModal({ isOpen, onClose, entrenador }) {
                                         size="sm"
                                     >
                                         {clientes.map((cliente) => (
-                                            <option key={cliente.id} value={cliente.id}>
-                                                {cliente.nombre} {cliente.apellido}
+                                            <option
+                                                key={cliente.usuario_id}
+                                                value={cliente.usuario_id}
+                                            >
+                                                {cliente.nombre}
                                             </option>
                                         ))}
                                     </Select>
@@ -249,10 +255,11 @@ export default function SesionesModal({ isOpen, onClose, entrenador }) {
                                             }
                                             size="sm"
                                         >
-                                            <option value="30">30 min</option>
-                                            <option value="45">45 min</option>
-                                            <option value="60">60 min</option>
-                                            <option value="90">90 min</option>
+                                            <option value={30}>30 min</option>
+                                            <option value={45}>45 min</option>
+                                            <option value={60}>60 min</option>
+                                            <option value={90}>90 min</option>
+                                            <option value={120}>120 min</option>
                                         </Select>
                                     </FormControl>
 
@@ -289,21 +296,21 @@ export default function SesionesModal({ isOpen, onClose, entrenador }) {
                                                 notas: e.target.value,
                                             }))
                                         }
-                                        placeholder="Objetivos, ejercicios a trabajar..."
+                                        placeholder="Objetivos, ejercicios, observaciones..."
                                         size="sm"
                                         rows={2}
                                     />
                                 </FormControl>
 
                                 <Button
-                                    leftIcon={<FiPlus />}
                                     colorScheme="green"
                                     onClick={handleCrearSesion}
                                     isLoading={loading}
+                                    isDisabled={loading}
                                     w="full"
                                     size="sm"
                                 >
-                                    Programar Sesión
+                                    📅 Programar Sesión
                                 </Button>
                             </VStack>
                         </Box>
@@ -320,6 +327,7 @@ export default function SesionesModal({ isOpen, onClose, entrenador }) {
                                     {sesiones.length}
                                 </Badge>
                             </HStack>
+                            
                             {loading && sesiones.length === 0 ? (
                                 <Text color="gray.500" fontSize="sm">
                                     Cargando...
@@ -330,54 +338,41 @@ export default function SesionesModal({ isOpen, onClose, entrenador }) {
                                 </Text>
                             ) : (
                                 <VStack spacing={2} align="stretch" maxH="400px" overflowY="auto">
-                                    {sesionesOrdenadas.map((sesion) => {
+                                    {sesiones.map((sesion, index) => {
                                         const cliente = clientes.find(
-                                            (c) => c.id === sesion.usuario_id
+                                            (c) => c.usuario_id === sesion.usuario_id
                                         )
+                                        const sesionId = sesion.id || `sesion-${index}`
+                                        
                                         return (
                                             <Box
-                                                key={sesion.id}
+                                                key={sesionId}
                                                 p={3}
                                                 bg="gray.50"
                                                 borderRadius="md"
                                                 borderLeft="4px solid"
-                                                borderLeftColor={`${getEstadoColor(
-                                                    sesion.estado
-                                                )}.400`}
+                                                borderLeftColor={`${getEstadoColor(sesion.estado)}.400`}
                                             >
                                                 <HStack justify="space-between" mb={2}>
                                                     <HStack spacing={2}>
                                                         <Avatar
                                                             size="xs"
-                                                            name={
-                                                                cliente
-                                                                    ? `${cliente.nombre} ${cliente.apellido}`
-                                                                    : 'Cliente'
-                                                            }
+                                                            name={cliente?.nombre || 'Cliente'}
                                                             bg="blue.400"
                                                         />
-                                                        <Text
-                                                            fontSize="sm"
-                                                            fontWeight="medium"
-                                                        >
-                                                            {cliente
-                                                                ? `${cliente.nombre} ${cliente.apellido}`
-                                                                : 'Cliente desconocido'}
+                                                        <Text fontSize="sm" fontWeight="medium">
+                                                            {cliente?.nombre || 'Cliente desconocido'}
                                                         </Text>
                                                     </HStack>
                                                     <HStack>
                                                         <Badge
-                                                            colorScheme={getTipoColor(
-                                                                sesion.tipo
-                                                            )}
+                                                            colorScheme={getTipoColor(sesion.tipo)}
                                                             fontSize="xs"
                                                         >
                                                             {sesion.tipo}
                                                         </Badge>
                                                         <Badge
-                                                            colorScheme={getEstadoColor(
-                                                                sesion.estado
-                                                            )}
+                                                            colorScheme={getEstadoColor(sesion.estado)}
                                                             fontSize="xs"
                                                         >
                                                             {sesion.estado}
@@ -385,50 +380,36 @@ export default function SesionesModal({ isOpen, onClose, entrenador }) {
                                                     </HStack>
                                                 </HStack>
 
-                                                <HStack
-                                                    fontSize="xs"
-                                                    color="gray.600"
-                                                    spacing={3}
-                                                    mb={2}
-                                                >
+                                                <HStack fontSize="xs" color="gray.600" spacing={3} mb={2}>
                                                     <Text>
-                                                        📅{' '}
-                                                        {new Date(
-                                                            sesion.fecha
-                                                        ).toLocaleDateString('es-ES')}
+                                                        📅 {sesion.fecha ? new Date(sesion.fecha).toLocaleDateString('es-ES') : 'Sin fecha'}
                                                     </Text>
                                                     {sesion.hora && (
                                                         <Text>🕐 {sesion.hora}</Text>
                                                     )}
-                                                    <Text>
-                                                        ⏱️ {sesion.duracion_minutos} min
-                                                    </Text>
+                                                    <Text>⏱️ {sesion.duracion_minutos} min</Text>
                                                 </HStack>
 
                                                 {sesion.notas && (
-                                                    <Text
-                                                        fontSize="xs"
-                                                        color="gray.500"
-                                                        mb={2}
-                                                    >
+                                                    <Text fontSize="xs" color="gray.500" mb={2}>
                                                         {sesion.notas}
                                                     </Text>
                                                 )}
 
-                                                {sesion.estado === 'programada' && (
+                                                {sesion.estado === 'programada' && sesion.id && (
                                                     <HStack spacing={2}>
                                                         <Button
                                                             size="xs"
                                                             colorScheme="green"
-                                                            leftIcon={<FiCheckCircle />}
                                                             onClick={() =>
                                                                 handleActualizarEstado(
                                                                     sesion.id,
                                                                     'completada'
                                                                 )
                                                             }
+                                                            isDisabled={loading}
                                                         >
-                                                            Completar
+                                                            ✓ Completar
                                                         </Button>
                                                         <Button
                                                             size="xs"
@@ -440,8 +421,9 @@ export default function SesionesModal({ isOpen, onClose, entrenador }) {
                                                                     'cancelada'
                                                                 )
                                                             }
+                                                            isDisabled={loading}
                                                         >
-                                                            Cancelar
+                                                            ✕ Cancelar
                                                         </Button>
                                                     </HStack>
                                                 )}

@@ -483,8 +483,13 @@ export default function EntrenadoresTab() {
                                         <Text>{e.experiencia_anos !== undefined ? e.experiencia_anos : 0} años</Text>
                                     </Td>
                                     <Td color="gray.700">
-                                        <Text fontWeight="medium">
-                                            ${e.tarifa_hora !== undefined ? parseInt(e.tarifa_hora).toLocaleString('es-CO') : '0'}
+                                        <Text fontWeight="medium" color="green.600">
+                                            {new Intl.NumberFormat('es-CO', {
+                                                style: 'currency',
+                                                currency: 'COP',
+                                                minimumFractionDigits: 0,
+                                                maximumFractionDigits: 0
+                                            }).format(parseFloat(e.tarifa_hora) || 0)}
                                         </Text>
                                     </Td>
                                     <Td>
@@ -494,7 +499,7 @@ export default function EntrenadoresTab() {
                                     </Td>
                                     <Td>
                                         <HStack spacing={1}>
-                                            <Tooltip label="Editar entrenador" hasArrow>
+                                            <Tooltip label="Editar entrenador" hasArrow placement="top">
                                                 <IconButton
                                                     aria-label="Editar"
                                                     icon={<FiEdit />}
@@ -504,7 +509,7 @@ export default function EntrenadoresTab() {
                                                     onClick={() => handleEditar(e)}
                                                 />
                                             </Tooltip>
-                                            <Tooltip label="Eliminar entrenador" hasArrow>
+                                            <Tooltip label="Eliminar entrenador" hasArrow placement="top">
                                                 <IconButton
                                                     aria-label="Eliminar"
                                                     icon={<FiTrash2 />}
@@ -515,27 +520,27 @@ export default function EntrenadoresTab() {
                                                 />
                                             </Tooltip>
                                             <Menu>
-                                                <Tooltip label="Más acciones" hasArrow>
+                                                <Tooltip label="Más opciones" hasArrow placement="top">
                                                     <MenuButton
                                                         as={IconButton}
                                                         icon={<FiMoreVertical />}
                                                         size="sm"
                                                         variant="ghost"
-                                                        colorScheme="gray"
+                                                        colorScheme="green"
                                                     />
                                                 </Tooltip>
                                                 <MenuList>
                                                     <MenuItem icon={<FiClock />} onClick={() => abrirHorarios(e)}>
-                                                        Gestionar Horarios
+                                                        ⏰ Gestionar Horarios
                                                     </MenuItem>
                                                     <MenuItem icon={<FiUsers />} onClick={() => abrirClientes(e)}>
-                                                        Ver Clientes
+                                                        👥 Ver Clientes
                                                     </MenuItem>
                                                     <MenuItem icon={<FiCalendar />} onClick={() => abrirSesiones(e)}>
-                                                        Sesiones
+                                                        📅 Sesiones
                                                     </MenuItem>
-                                                    <MenuItem icon={<FiAward />} onClick={() => abrirValoraciones(e)}>
-                                                        Valoraciones
+                                                    <MenuItem icon={<FiStar />} onClick={() => abrirValoraciones(e)}>
+                                                        ⭐ Valoraciones
                                                     </MenuItem>
                                                 </MenuList>
                                             </Menu>
