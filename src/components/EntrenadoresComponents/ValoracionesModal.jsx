@@ -79,30 +79,34 @@ export default function ValoracionesModal({ isOpen, onClose, entrenador }) {
         }
 
         setLoading(true)
-        try {
-            await createValoracionEntrenador(entrenador.id, nuevaValoracion)
-            toast({
-                title: 'Valoración agregada exitosamente',
-                status: 'success',
-                duration: 2000,
-            })
-            cargarDatos()
-            setNuevaValoracion({
-                usuario_id: '',
-                puntuacion: 5,
-                comentario: '',
-            })
-        } catch (err) {
-            console.error('Error:', err)
-            toast({
-                title: 'Error al agregar valoración',
-                description: err.message,
-                status: 'error',
-                duration: 3000,
-            })
-        } finally {
-            setLoading(false)
-        }
+        
+        // Usar setTimeout para evitar manipulación síncrona del DOM
+        setTimeout(async () => {
+            try {
+                await createValoracionEntrenador(entrenador.id, nuevaValoracion)
+                toast({
+                    title: 'Valoración agregada exitosamente',
+                    status: 'success',
+                    duration: 2000,
+                })
+                await cargarDatos()
+                setNuevaValoracion({
+                    usuario_id: '',
+                    puntuacion: 5,
+                    comentario: '',
+                })
+            } catch (err) {
+                console.error('Error:', err)
+                toast({
+                    title: 'Error al agregar valoración',
+                    description: err.message,
+                    status: 'error',
+                    duration: 3000,
+                })
+            } finally {
+                setLoading(false)
+            }
+        }, 0)
     }
 
     // Calcular promedio de puntuaciones
@@ -207,8 +211,8 @@ export default function ValoracionesModal({ isOpen, onClose, entrenador }) {
                                         size="sm"
                                     >
                                         {clientes.map((cliente) => (
-                                            <option key={cliente.id} value={cliente.id}>
-                                                {cliente.nombre} {cliente.apellido}
+                                            <option key={cliente.usuario_id} value={cliente.usuario_id}>
+                                                {cliente.nombre}
                                             </option>
                                         ))}
                                     </Select>
@@ -272,14 +276,14 @@ export default function ValoracionesModal({ isOpen, onClose, entrenador }) {
                                 </FormControl>
 
                                 <Button
-                                    leftIcon={<FiStar />}
                                     colorScheme="green"
                                     onClick={handleCrearValoracion}
                                     isLoading={loading}
+                                    isDisabled={loading}
                                     w="full"
                                     size="sm"
                                 >
-                                    Agregar Valoración
+                                    ⭐ Agregar Valoración
                                 </Button>
                             </VStack>
                         </Box>
@@ -301,13 +305,15 @@ export default function ValoracionesModal({ isOpen, onClose, entrenador }) {
                                 </Text>
                             ) : (
                                 <VStack spacing={3} align="stretch" maxH="400px" overflowY="auto">
-                                    {valoraciones.map((valoracion) => {
+                                    {valoraciones.map((valoracion, index) => {
                                         const cliente = clientes.find(
-                                            (c) => c.id === valoracion.usuario_id
+                                            (c) => c.usuario_id === valoracion.usuario_id
                                         )
+                                        const valoracionId = valoracion.id || `val-${index}`
+                                        
                                         return (
                                             <Box
-                                                key={valoracion.id}
+                                                key={valoracionId}
                                                 p={3}
                                                 bg="gray.50"
                                                 borderRadius="md"
@@ -316,11 +322,7 @@ export default function ValoracionesModal({ isOpen, onClose, entrenador }) {
                                                     <HStack>
                                                         <Avatar
                                                             size="sm"
-                                                            name={
-                                                                cliente
-                                                                    ? `${cliente.nombre} ${cliente.apellido}`
-                                                                    : 'Cliente'
-                                                            }
+                                                            name={cliente?.nombre || 'Cliente'}
                                                             bg="blue.400"
                                                         />
                                                         <VStack align="start" spacing={0}>
@@ -328,9 +330,7 @@ export default function ValoracionesModal({ isOpen, onClose, entrenador }) {
                                                                 fontSize="sm"
                                                                 fontWeight="medium"
                                                             >
-                                                                {cliente
-                                                                    ? `${cliente.nombre} ${cliente.apellido}`
-                                                                    : 'Cliente'}
+                                                                {cliente?.nombre || 'Cliente'}
                                                             </Text>
                                                             <HStack>
                                                                 {renderEstrellas(
