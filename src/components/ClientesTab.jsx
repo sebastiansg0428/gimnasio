@@ -1,6 +1,7 @@
 // ClientesTab.jsx
 import React, { useState, useEffect } from 'react'
 import { usuariosAPI, authAPI } from '../services/api'
+import { getRutinas, getRutinasUsuario, assignRutinaToUsuario } from '../utils/api'
 import {
     Box,
     Table,
@@ -33,7 +34,52 @@ import {
     InputLeftElement,
     InputRightElement,
 } from '@chakra-ui/react'
-import { FiMoreVertical, FiSearch, FiUser, FiUserPlus, FiX } from 'react-icons/fi'
+import { FiMoreVertical, FiSearch, FiUser, FiUserPlus, FiX, FiRefreshCw } from 'react-icons/fi'
+
+// Función helper para formatear fechas
+const formatearFecha = (fecha) => {
+    if (!fecha || fecha === 'NULL' || fecha === null || fecha === 'undefined') {
+        return '-'
+    }
+    
+    // Si la fecha ya viene formateada desde el backend (DD/MM/YYYY o con hora)
+    if (typeof fecha === 'string' && (fecha.includes('/') || fecha.match(/^\d{2}\/\d{2}\/\d{4}/))) {
+        // Extraer solo la fecha sin la hora si existe
+        return fecha.split(' ')[0]
+    }
+    
+    // Si viene en formato ISO (YYYY-MM-DD o con hora)
+    try {
+        const fechaParseada = new Date(fecha.includes('T') ? fecha : fecha + 'T00:00:00')
+        if (isNaN(fechaParseada.getTime())) return fecha // Devolver tal cual si no se puede parsear
+        
+        return fechaParseada.toLocaleDateString('es-ES', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        })
+    } catch (error) {
+        return fecha // Devolver tal cual en caso de error
+    }
+}
+
+// Función helper para formatear género
+const formatearGenero = (genero) => {
+    if (!genero) return '-'
+    const generoUpper = genero.toUpperCase()
+    if (generoUpper === 'M' || generoUpper === 'MASCULINO') return 'Masculino'
+    if (generoUpper === 'F' || generoUpper === 'FEMENINO') return 'Femenino'
+    return 'Otro'
+}
+
+// Función helper para obtener color del badge de género
+const getGeneroColor = (genero) => {
+    if (!genero) return 'gray'
+    const generoUpper = genero.toUpperCase()
+    if (generoUpper === 'M' || generoUpper === 'MASCULINO') return 'blue'
+    if (generoUpper === 'F' || generoUpper === 'FEMENINO') return 'pink'
+    return 'gray'
+}
 
 // Lista inicial vacía: mostrar solo usuarios provenientes del backend
 
@@ -55,8 +101,19 @@ export default function ClientesTab() {
     const closeModal = () => setIsOpen(false)
     const [isAssignOpen, setIsAssignOpen] = useState(false)
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+    const [isEditOpen, setIsEditOpen] = useState(false)
     const [rutinasDisponibles, setRutinasDisponibles] = useState([])
     const [selectedClienteForAssign, setSelectedClienteForAssign] = useState(null)
+    const [selectedClienteForEdit, setSelectedClienteForEdit] = useState(null)
+    const [editData, setEditData] = useState({
+        nombre: '',
+        apellido: '',
+        email: '',
+        telefono: '',
+        genero: '',
+        membresia: 'basica',
+        estado: 'activo'
+    })
     const [selectedRutinaId, setSelectedRutinaId] = useState(null)
     const [assignedRutinas, setAssignedRutinas] = useState([])
 
@@ -91,6 +148,69 @@ export default function ClientesTab() {
 
     const closeDetailsModal = () => setIsDetailsOpen(false)
 
+    const openEditModal = (cliente) => {
+        setSelectedClienteForEdit(cliente)
+        setEditData({
+            nombre: cliente.nombre || '',
+            apellido: cliente.apellido || '',
+            email: cliente.email || '',
+            telefono: cliente.telefono || '',
+            genero: cliente.genero || '',
+            membresia: cliente.membresia || 'basica',
+            estado: cliente.estado || 'activo'
+        })
+        setIsEditOpen(true)
+    }
+
+    const closeEditModal = () => {
+        setIsEditOpen(false)
+        setSelectedClienteForEdit(null)
+    }
+
+    const handleEditUsuario = async () => {
+        if (!selectedClienteForEdit) return
+        
+        try {
+            await usuariosAPI.updateUsuario(selectedClienteForEdit.id, editData)
+            
+            // Recargar todos los usuarios desde el backend para asegurar sincronización
+            const usuarios = await usuariosAPI.getUsuarios()
+            const clientesDeUsuarios = (usuarios || []).map((user) => ({
+                id: user.id,
+                nombre: user.nombre || '',
+                apellido: user.apellido || '',
+                email: user.email || '',
+                telefono: user.telefono || '',
+                fecha_nacimiento: user.fecha_nacimiento || null,
+                genero: user.genero || '',
+                membresia: user.membresia || 'basica',
+                estado: user.estado || 'activo',
+                fecha_vencimiento: user.fecha_vencimiento || null,
+                precio_membresia: user.precio_membresia || 0,
+                ultima_visita: user.ultima_visita || null,
+                total_visitas: user.total_visitas || 0,
+                created_at: user.created_at || null,
+                updated_at: user.updated_at || null,
+            }))
+            setClientes(clientesDeUsuarios)
+            
+            toast({ 
+                title: 'Usuario actualizado', 
+                status: 'success', 
+                duration: 2000 
+            })
+            closeEditModal()
+        } catch (err) {
+            console.error('Error al actualizar usuario:', err)
+            toast({ 
+                title: 'Error al actualizar usuario', 
+                description: err.message,
+                status: 'error', 
+                duration: 3000 
+            })
+        }
+    }
+
     // Persistir clientes en localStorage
     useEffect(() => {
         try {
@@ -116,37 +236,29 @@ export default function ClientesTab() {
         async function fetchUsuarios() {
             try {
                 const usuarios = await usuariosAPI.getUsuarios()
-                // Mapear usuarios a formato de cliente
-                const clientesDeUsuarios = (usuarios || []).map((user, index) => ({
-                    id: user.id || user._id || index + 1000,
-                    usuario: user.nombre || user.name || user.username || (user.email ? user.email.split('@')[0] : ''),
-                    nombre: user.nombre || user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
-                    correo: user.email || user.correo || '',
-                    membresia: user.membresia || 'Mensual',
-                    estado: user.estado || 'Activo',
-                    ultimaVisita: user.ultimaVisita || new Date().toISOString().split('T')[0],
-                    rutinasAsignadas: user.rutinasAsignadas ?? 0,
+                // Mapear usuarios a formato correcto según la base de datos
+                const clientesDeUsuarios = (usuarios || []).map((user) => ({
+                    id: user.id,
+                    nombre: user.nombre || '',
+                    apellido: user.apellido || '',
+                    email: user.email || '',
+                    telefono: user.telefono || '',
+                    fecha_nacimiento: user.fecha_nacimiento || null,
+                    genero: user.genero || '',
+                    membresia: user.membresia || 'basica',
+                    estado: user.estado || 'activo',
+                    fecha_vencimiento: user.fecha_vencimiento || null,
+                    precio_membresia: user.precio_membresia || 0,
+                    ultima_visita: user.ultima_visita || null,
+                    total_visitas: user.total_visitas || 0,
+                    created_at: user.created_at || null,
+                    updated_at: user.updated_at || null,
                 }))
 
                 if (mounted) setClientes(clientesDeUsuarios)
             } catch (e) {
-                // Fallback: leer de localStorage si backend no disponible
-                try {
-                    const usuariosLocal = JSON.parse(localStorage.getItem('rg_users') || '[]')
-                    const clientesDeUsuarios = usuariosLocal.map((user, index) => ({
-                        id: user.id || index + 1000,
-                        usuario: user.username || user.userName || user.name || (user.email ? user.email.split('@')[0] : ''),
-                        nombre: user.name || user.nombre || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
-                        correo: user.email || user.correo || '',
-                        membresia: user.membresia || 'Mensual',
-                        estado: user.estado || 'Activo',
-                        ultimaVisita: user.ultimaVisita || new Date().toISOString().split('T')[0],
-                        rutinasAsignadas: user.rutinasAsignadas ?? Math.floor(Math.random() * 5)
-                    }))
-                    if (mounted) setClientes(clientesDeUsuarios)
-                } catch (err) {
-                    console.error('Error cargando usuarios fallback:', err)
-                }
+                console.error('Error cargando usuarios:', e)
+                if (mounted) setClientes([])
             }
         }
 
@@ -160,18 +272,34 @@ export default function ClientesTab() {
         const q = busqueda.trim().toLowerCase()
         const coincideBusqueda =
             q === '' ||
-            (cliente.usuario && cliente.usuario.toLowerCase().includes(q)) ||
-            cliente.nombre.toLowerCase().includes(q) ||
-            cliente.correo.toLowerCase().includes(q)
+            (cliente.nombre && cliente.nombre.toLowerCase().includes(q)) ||
+            (cliente.apellido && cliente.apellido.toLowerCase().includes(q)) ||
+            (cliente.email && cliente.email.toLowerCase().includes(q)) ||
+            (cliente.telefono && cliente.telefono.includes(q))
         const coincideMembresia =
             filtroMembresia === 'todos' ||
-            cliente.membresia.toLowerCase().includes(filtroMembresia.toLowerCase())
+            (cliente.membresia && cliente.membresia.toLowerCase() === filtroMembresia.toLowerCase())
         return coincideBusqueda && coincideMembresia
     })
 
     const handleAccion = (accion, cliente) => {
         if (accion === 'rutina') return openAssignModal(cliente)
         if (accion === 'ver') return openDetailsModal(cliente)
+        if (accion === 'editar') return openEditModal(cliente)
+        if (accion === 'desactivar') {
+            usuariosAPI.cambiarEstado(cliente.id, 'inactivo')
+                .then(() => {
+                    setClientes(prev => prev.map(c => 
+                        c.id === cliente.id ? { ...c, estado: 'inactivo' } : c
+                    ))
+                    toast({ title: 'Usuario desactivado', status: 'info', duration: 2000 })
+                })
+                .catch(err => {
+                    console.error(err)
+                    toast({ title: 'Error al desactivar usuario', status: 'error', duration: 3000 })
+                })
+            return
+        }
         toast({
             title: `Acción: ${accion}`,
             description: `Para cliente: ${cliente.nombre}`,
@@ -239,20 +367,49 @@ export default function ClientesTab() {
             return
         }
         try {
-            await assignRutinaToUsuario(selectedClienteForAssign.id, { rutinaId: selectedRutinaId })
+            // La función assignRutinaToUsuario espera (usuarioId, rutinaId, data)
+            await assignRutinaToUsuario(selectedClienteForAssign.id, selectedRutinaId, {})
             // actualizar contador localmente
             setClientes(prev => prev.map(c => c.id === selectedClienteForAssign.id ? ({ ...c, rutinasAsignadas: (c.rutinasAsignadas||0) + 1 }) : c))
             toast({ title: 'Rutina asignada', status: 'success', duration: 2000 })
             closeAssignModal()
         } catch (err) {
             console.error(err)
-            toast({ title: 'Error al asignar rutina', status: 'error', duration: 3000 })
+            toast({ title: 'Error al asignar rutina', description: err.message, status: 'error', duration: 3000 })
         }
     }
 
     const limpiarBusqueda = () => {
         setInputValue('')
         setBusqueda('')
+    }
+
+    const refrescarDatos = async () => {
+        try {
+            const usuarios = await usuariosAPI.getUsuarios()
+            const clientesDeUsuarios = (usuarios || []).map((user) => ({
+                id: user.id,
+                nombre: user.nombre || '',
+                apellido: user.apellido || '',
+                email: user.email || '',
+                telefono: user.telefono || '',
+                fecha_nacimiento: user.fecha_nacimiento || null,
+                genero: user.genero || '',
+                membresia: user.membresia || 'basica',
+                estado: user.estado || 'activo',
+                fecha_vencimiento: user.fecha_vencimiento || null,
+                precio_membresia: user.precio_membresia || 0,
+                ultima_visita: user.ultima_visita || null,
+                total_visitas: user.total_visitas || 0,
+                created_at: user.created_at || null,
+                updated_at: user.updated_at || null,
+            }))
+            setClientes(clientesDeUsuarios)
+            toast({ title: 'Datos actualizados', status: 'success', duration: 1500 })
+        } catch (err) {
+            console.error('Error refrescando datos:', err)
+            toast({ title: 'Error al actualizar', status: 'error', duration: 2000 })
+        }
     }
 
     return (
@@ -267,6 +424,16 @@ export default function ClientesTab() {
                     onClick={openModal}
                 >
                     Nuevo Cliente
+                </Button>
+
+                <Button 
+                    leftIcon={<FiRefreshCw />}
+                    colorScheme="blue"
+                    variant="outline"
+                    _hover={{ transform: 'translateY(-2px)', boxShadow: 'md' }}
+                    onClick={refrescarDatos}
+                >
+                    Actualizar
                 </Button>
 
                 {/* InputGroup con InputLeftElement e InputRightElement */}
@@ -314,53 +481,83 @@ export default function ClientesTab() {
                     _hover={{ borderColor: "green.400" }}
                 >
                     <option value="todos">Todas las membresías</option>
-                    <option value="diaria/ pase del dia">Diaria/ Pase del dia</option>
-                    <option value="semanal">Semanal</option>
-                    <option value="mensual">Mensual</option>
-                    <option value="trimestral">Trimestal</option>
-                    <option value="semestral">Semestral</option>
-                    <option value="anual">Anual</option>
+                    <option value="basica">Básica</option>
+                    <option value="premium">Premium</option>
+                    <option value="vip">VIP</option>
                 </Select>
             </HStack>
 
-            <Box overflowX="auto">
+            <Box overflowX="auto" bg="white" borderRadius="lg" boxShadow="sm">
                 <Table variant="simple">
-                    <Thead>
+                    <Thead bg="gray.50">
                         <Tr>
                             <Th>ID</Th>
-                            <Th>Usuario</Th>
-                            <Th>Correo</Th>
+                            <Th>Nombre</Th>
+                            <Th>Email</Th>
+                            <Th>Teléfono</Th>
+                            <Th>Género</Th>
                             <Th>Membresía</Th>
                             <Th>Estado</Th>
+                            <Th>Vencimiento</Th>
                             <Th>Última Visita</Th>
-                            <Th>Rutinas</Th>
-                            <Th></Th>
+                            <Th>Total Visitas</Th>
+                            <Th>Acciones</Th>
                         </Tr>
                     </Thead>
                     <Tbody>
-                        {clientesFiltrados.map((cliente) => (
-                            <Tr key={cliente.id}>
-                                <Td>{cliente.id}</Td>
-                                <Td>
-                                    <Text color="gray.600" fontWeight="medium">{cliente.usuario || cliente.nombre}</Text>
+                        {clientesFiltrados.length === 0 ? (
+                            <Tr>
+                                <Td colSpan={11} textAlign="center" color="gray.500">
+                                    No hay clientes que coincidan con la búsqueda
                                 </Td>
-                                <Td>
-                                    <Text fontSize="sm" color="gray.500">{cliente.correo}</Text>
-                                </Td>
-                                <Td>
-                                    <Badge colorScheme={cliente.membresia === 'Premium' ? 'purple' : 'gray'}>
-                                        {cliente.membresia}
+                            </Tr>
+                        ) : (
+                            clientesFiltrados.map((cliente) => (
+                                <Tr key={cliente.id} _hover={{ bg: "gray.50" }}>
+                                    <Td>{cliente.id}</Td>
+                                    <Td>
+                                        <Text fontWeight="medium" color="gray.800">
+                                            {cliente.nombre} {cliente.apellido}
+                                        </Text>
+                                    </Td>
+                                    <Td>
+                                        <Text fontSize="sm" color="gray.600">{cliente.email}</Text>
+                                    </Td>
+                                    <Td>
+                                        <Text fontSize="sm" color="gray.600">{cliente.telefono || '-'}</Text>
+                                    </Td>
+                                    <Td>
+                                        <Badge colorScheme={getGeneroColor(cliente.genero)}>
+                                            {formatearGenero(cliente.genero)}
+                                        </Badge>
+                                    </Td>
+                                    <Td>
+                                        <Badge colorScheme={
+                                            cliente.membresia === 'vip' ? 'purple' : 
+                                            cliente.membresia === 'premium' ? 'blue' : 
+                                            'green'
+                                        }>
+                                            {cliente.membresia}
+                                        </Badge>
+                                    </Td>
+                                    <Td>
+                                        <Badge colorScheme={cliente.estado === 'activo' ? 'green' : 'red'}>
+                                            {cliente.estado}
                                     </Badge>
                                 </Td>
                                 <Td>
-                                    <Badge colorScheme={cliente.estado === 'Activo' ? 'green' : 'red'}>
-                                        {cliente.estado}
-                                    </Badge>
+                                    <Text fontSize="sm" color="gray.600">
+                                        {formatearFecha(cliente.fecha_vencimiento)}
+                                    </Text>
                                 </Td>
-                                <Td color="gray.600">{cliente.ultimaVisita}</Td>
                                 <Td>
-                                    <Badge colorScheme={cliente.rutinasAsignadas > 0 ? 'blue' : 'gray'}>
-                                        {cliente.rutinasAsignadas} rutinas
+                                    <Text fontSize="sm" color="gray.600">
+                                        {formatearFecha(cliente.ultima_visita)}
+                                    </Text>
+                                </Td>
+                                <Td>
+                                    <Badge colorScheme={cliente.total_visitas > 20 ? 'green' : cliente.total_visitas > 10 ? 'blue' : 'gray'}>
+                                        {cliente.total_visitas} visitas
                                     </Badge>
                                 </Td>
                                 <Td>
@@ -376,7 +573,8 @@ export default function ClientesTab() {
                                     </Menu>
                                 </Td>
                             </Tr>
-                        ))}
+                        ))
+                        )}
                     </Tbody>
                 </Table>
             </Box>
@@ -467,6 +665,82 @@ export default function ClientesTab() {
                 </ModalBody>
                 <ModalFooter>
                     <Button onClick={closeDetailsModal}>Cerrar</Button>
+                </ModalFooter>
+            </ModalContent>
+        </Modal>
+
+        {/* Modal Editar Usuario */}
+        <Modal isOpen={isEditOpen} onClose={closeEditModal} size="lg">
+            <ModalOverlay />
+            <ModalContent>
+                <ModalHeader>Editar Cliente</ModalHeader>
+                <ModalBody>
+                    <FormControl mb={3}>
+                        <FormLabel>Nombre</FormLabel>
+                        <Input 
+                            value={editData.nombre} 
+                            onChange={(e) => setEditData(prev => ({ ...prev, nombre: e.target.value }))} 
+                        />
+                    </FormControl>
+                    <FormControl mb={3}>
+                        <FormLabel>Apellido</FormLabel>
+                        <Input 
+                            value={editData.apellido} 
+                            onChange={(e) => setEditData(prev => ({ ...prev, apellido: e.target.value }))} 
+                        />
+                    </FormControl>
+                    <FormControl mb={3}>
+                        <FormLabel>Email</FormLabel>
+                        <Input 
+                            type="email"
+                            value={editData.email} 
+                            onChange={(e) => setEditData(prev => ({ ...prev, email: e.target.value }))} 
+                        />
+                    </FormControl>
+                    <FormControl mb={3}>
+                        <FormLabel>Teléfono</FormLabel>
+                        <Input 
+                            value={editData.telefono} 
+                            onChange={(e) => setEditData(prev => ({ ...prev, telefono: e.target.value }))} 
+                        />
+                    </FormControl>
+                    <FormControl mb={3}>
+                        <FormLabel>Género</FormLabel>
+                        <Select 
+                            value={editData.genero} 
+                            onChange={(e) => setEditData(prev => ({ ...prev, genero: e.target.value }))}
+                        >
+                            <option value="">Seleccionar...</option>
+                            <option value="M">Masculino</option>
+                            <option value="F">Femenino</option>
+                            <option value="Otro">Otro</option>
+                        </Select>
+                    </FormControl>
+                    <FormControl mb={3}>
+                        <FormLabel>Membresía</FormLabel>
+                        <Select 
+                            value={editData.membresia} 
+                            onChange={(e) => setEditData(prev => ({ ...prev, membresia: e.target.value }))}
+                        >
+                            <option value="basica">Básica</option>
+                            <option value="premium">Premium</option>
+                            <option value="vip">VIP</option>
+                        </Select>
+                    </FormControl>
+                    <FormControl>
+                        <FormLabel>Estado</FormLabel>
+                        <Select 
+                            value={editData.estado} 
+                            onChange={(e) => setEditData(prev => ({ ...prev, estado: e.target.value }))}
+                        >
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                        </Select>
+                    </FormControl>
+                </ModalBody>
+                <ModalFooter>
+                    <Button variant="ghost" mr={3} onClick={closeEditModal}>Cancelar</Button>
+                    <Button colorScheme="green" onClick={handleEditUsuario}>Guardar Cambios</Button>
                 </ModalFooter>
             </ModalContent>
         </Modal>
