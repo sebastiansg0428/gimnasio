@@ -190,9 +190,12 @@ export default function ClientesTab() {
         apellido: '',
         email: '',
         telefono: '',
+        fecha_nacimiento: '',
         genero: '',
         membresia: 'DIARIA',
-        estado: 'activo'
+        precio_membresia: '',
+        estado: 'activo',
+        renovar_membresia: false
     })
     const [selectedRutinaId, setSelectedRutinaId] = useState(null)
     const [assignedRutinas, setAssignedRutinas] = useState([])
@@ -235,9 +238,12 @@ export default function ClientesTab() {
             apellido: cliente.apellido || '',
             email: cliente.email || '',
             telefono: cliente.telefono || '',
+            fecha_nacimiento: cliente.fecha_nacimiento || '',
             genero: cliente.genero || '',
             membresia: cliente.membresia || 'DIARIA',
-            estado: cliente.estado || 'activo'
+            precio_membresia: cliente.precio_membresia || '',
+            estado: cliente.estado || 'activo',
+            renovar_membresia: false
         })
         setIsEditOpen(true)
     }
@@ -251,31 +257,45 @@ export default function ClientesTab() {
         if (!selectedClienteForEdit) return
         
         try {
+            // Actualizar datos del usuario
             await usuariosAPI.updateUsuario(selectedClienteForEdit.id, editData)
             
-            // Recargar todos los usuarios desde el backend para asegurar sincronización
-            const usuarios = await usuariosAPI.getUsuarios()
-            const clientesDeUsuarios = (usuarios || []).map((user) => ({
-                id: user.id,
-                nombre: user.nombre || '',
-                apellido: user.apellido || '',
-                email: user.email || '',
-                telefono: user.telefono || '',
-                fecha_nacimiento: user.fecha_nacimiento || null,
-                genero: user.genero || '',
-                membresia: (user.membresia || 'DIARIA').toUpperCase(),
-                estado: user.estado || 'activo',
-                fecha_vencimiento: user.fecha_vencimiento || null,
-                precio_membresia: user.precio_membresia || 0,
-                ultima_visita: user.ultima_visita || null,
-                total_visitas: user.total_visitas || 0,
-                created_at: user.created_at || null,
-                updated_at: user.updated_at || null,
-            }))
-            setClientes(clientesDeUsuarios)
+            // Si se marcó renovar membresía, registrar nuevo pago
+            if (editData.renovar_membresia && editData.precio_membresia) {
+                const pagoData = {
+                    usuario_id: selectedClienteForEdit.id,
+                    tipo_pago: 'membresia',
+                    monto: parseFloat(editData.precio_membresia),
+                    metodo_pago: 'efectivo',
+                    estado: 'completado',
+                    descripcion: `Renovación membresía ${editData.membresia}`,
+                    fecha_pago: new Date().toISOString().split('T')[0]
+                }
+                
+                try {
+                    await pagosAPI.createPago(pagoData)
+                    toast({ 
+                        title: '✅ Membresía renovada', 
+                        description: 'Pago registrado exitosamente',
+                        status: 'success', 
+                        duration: 2000 
+                    })
+                } catch (errPago) {
+                    console.error('Error al registrar pago:', errPago)
+                    toast({ 
+                        title: '⚠️ Usuario actualizado', 
+                        description: 'Pero no se pudo registrar el pago',
+                        status: 'warning', 
+                        duration: 3000 
+                    })
+                }
+            }
+            
+            // Recargar todos los datos
+            await refrescarDatos()
             
             toast({ 
-                title: 'Usuario actualizado', 
+                title: '✅ Usuario actualizado', 
                 status: 'success', 
                 duration: 2000 
             })
@@ -1139,78 +1159,177 @@ export default function ClientesTab() {
         </Modal>
 
         {/* Modal Editar Usuario */}
-        <Modal isOpen={isEditOpen} onClose={closeEditModal} size="lg">
+        <Modal isOpen={isEditOpen} onClose={closeEditModal} size="xl">
             <ModalOverlay />
             <ModalContent>
-                <ModalHeader>Editar Cliente</ModalHeader>
+                <ModalHeader>
+                    <HStack>
+                        <FiUser />
+                        <Text>Editar Cliente: {selectedClienteForEdit?.nombre} {selectedClienteForEdit?.apellido}</Text>
+                    </HStack>
+                </ModalHeader>
                 <ModalBody>
-                    <FormControl mb={3}>
-                        <FormLabel>Nombre</FormLabel>
-                        <Input 
-                            value={editData.nombre} 
-                            onChange={(e) => setEditData(prev => ({ ...prev, nombre: e.target.value }))} 
-                        />
-                    </FormControl>
-                    <FormControl mb={3}>
-                        <FormLabel>Apellido</FormLabel>
-                        <Input 
-                            value={editData.apellido} 
-                            onChange={(e) => setEditData(prev => ({ ...prev, apellido: e.target.value }))} 
-                        />
-                    </FormControl>
-                    <FormControl mb={3}>
-                        <FormLabel>Email</FormLabel>
-                        <Input 
-                            type="email"
-                            value={editData.email} 
-                            onChange={(e) => setEditData(prev => ({ ...prev, email: e.target.value }))} 
-                        />
-                    </FormControl>
-                    <FormControl mb={3}>
-                        <FormLabel>Teléfono</FormLabel>
-                        <Input 
-                            value={editData.telefono} 
-                            onChange={(e) => setEditData(prev => ({ ...prev, telefono: e.target.value }))} 
-                        />
-                    </FormControl>
-                    <FormControl mb={3}>
-                        <FormLabel>Género</FormLabel>
-                        <Select 
-                            value={editData.genero} 
-                            onChange={(e) => setEditData(prev => ({ ...prev, genero: e.target.value }))}
-                        >
-                            <option value="">Seleccionar...</option>
-                            <option value="M">Masculino</option>
-                            <option value="F">Femenino</option>
-                            <option value="Otro">Otro</option>
-                        </Select>
-                    </FormControl>
-                    <FormControl mb={3}>
-                        <FormLabel>Membresía</FormLabel>
-                        <Select 
-                            value={editData.membresia} 
-                            onChange={(e) => setEditData(prev => ({ ...prev, membresia: e.target.value }))}
-                        >
-                            <option value="DIARIA">Diaria</option>
-                            <option value="SEMANAL">Semanal</option>
-                            <option value="QUINCENAL">Quincenal</option>
-                            <option value="ANUAL">Anual</option>
-                        </Select>
-                    </FormControl>
-                    <FormControl>
-                        <FormLabel>Estado</FormLabel>
-                        <Select 
-                            value={editData.estado} 
-                            onChange={(e) => setEditData(prev => ({ ...prev, estado: e.target.value }))}
-                        >
-                            <option value="activo">Activo</option>
-                            <option value="inactivo">Inactivo</option>
-                        </Select>
-                    </FormControl>
+                    <VStack spacing={4} align="stretch">
+                        {/* Información Personal */}
+                        <Box>
+                            <Text fontWeight="bold" mb={3} color="green.600">Información Personal</Text>
+                            <SimpleGrid columns={2} spacing={3}>
+                                <FormControl isRequired>
+                                    <FormLabel fontSize="sm">Nombre</FormLabel>
+                                    <Input 
+                                        value={editData.nombre} 
+                                        onChange={(e) => setEditData(prev => ({ ...prev, nombre: e.target.value }))} 
+                                        placeholder="Nombre"
+                                    />
+                                </FormControl>
+                                <FormControl>
+                                    <FormLabel fontSize="sm">Apellido</FormLabel>
+                                    <Input 
+                                        value={editData.apellido} 
+                                        onChange={(e) => setEditData(prev => ({ ...prev, apellido: e.target.value }))} 
+                                        placeholder="Apellido"
+                                    />
+                                </FormControl>
+                            </SimpleGrid>
+                            
+                            <SimpleGrid columns={2} spacing={3} mt={3}>
+                                <FormControl>
+                                    <FormLabel fontSize="sm">Teléfono</FormLabel>
+                                    <Input 
+                                        value={editData.telefono} 
+                                        onChange={(e) => setEditData(prev => ({ ...prev, telefono: e.target.value }))} 
+                                        placeholder="3001234567"
+                                    />
+                                </FormControl>
+                                <FormControl>
+                                    <FormLabel fontSize="sm">Fecha de Nacimiento</FormLabel>
+                                    <Input 
+                                        type="date"
+                                        value={editData.fecha_nacimiento} 
+                                        onChange={(e) => setEditData(prev => ({ ...prev, fecha_nacimiento: e.target.value }))} 
+                                    />
+                                </FormControl>
+                            </SimpleGrid>
+                            
+                            <SimpleGrid columns={2} spacing={3} mt={3}>
+                                <FormControl>
+                                    <FormLabel fontSize="sm">Email</FormLabel>
+                                    <Input 
+                                        type="email"
+                                        value={editData.email} 
+                                        onChange={(e) => setEditData(prev => ({ ...prev, email: e.target.value }))} 
+                                        placeholder="email@ejemplo.com"
+                                    />
+                                </FormControl>
+                                <FormControl>
+                                    <FormLabel fontSize="sm">Género</FormLabel>
+                                    <Select 
+                                        value={editData.genero} 
+                                        onChange={(e) => setEditData(prev => ({ ...prev, genero: e.target.value }))}
+                                    >
+                                        <option value="">Seleccionar...</option>
+                                        <option value="M">Masculino</option>
+                                        <option value="F">Femenino</option>
+                                        <option value="Otro">Otro</option>
+                                    </Select>
+                                </FormControl>
+                            </SimpleGrid>
+                        </Box>
+                        
+                        <Divider />
+                        
+                        {/* Membresía y Estado */}
+                        <Box>
+                            <Text fontWeight="bold" mb={3} color="green.600">Membresía y Estado</Text>
+                            <SimpleGrid columns={2} spacing={3}>
+                                <FormControl>
+                                    <FormLabel fontSize="sm">Membresía</FormLabel>
+                                    <Select 
+                                        value={editData.membresia} 
+                                        onChange={(e) => setEditData(prev => ({ ...prev, membresia: e.target.value }))}
+                                    >
+                                        <option value="DIARIA">Diaria (1 día)</option>
+                                        <option value="SEMANAL">Semanal (7 días)</option>
+                                        <option value="QUINCENAL">Quincenal (15 días)</option>
+                                        <option value="MENSUAL">Mensual (30 días)</option>
+                                        <option value="ANUAL">Anual (365 días)</option>
+                                    </Select>
+                                </FormControl>
+                                <FormControl>
+                                    <FormLabel fontSize="sm">Estado</FormLabel>
+                                    <Select 
+                                        value={editData.estado} 
+                                        onChange={(e) => setEditData(prev => ({ ...prev, estado: e.target.value }))}
+                                    >
+                                        <option value="activo">Activo</option>
+                                        <option value="inactivo">Inactivo</option>
+                                    </Select>
+                                </FormControl>
+                            </SimpleGrid>
+                            
+                            {/* Información actual de membresía */}
+                            {selectedClienteForEdit && (
+                                <Box mt={3} p={3} bg="blue.50" borderRadius="md" borderWidth="1px" borderColor="blue.200">
+                                    <Text fontSize="sm" fontWeight="bold" color="blue.700" mb={2}>📊 Información actual:</Text>
+                                    <SimpleGrid columns={2} spacing={2}>
+                                        <Text fontSize="xs" color="gray.600">
+                                            Vencimiento: <Text as="span" fontWeight="bold">{formatearFecha(selectedClienteForEdit.fecha_vencimiento)}</Text>
+                                        </Text>
+                                        <Text fontSize="xs" color="gray.600">
+                                            Precio: <Text as="span" fontWeight="bold">${Number(selectedClienteForEdit.precio_membresia || 0).toLocaleString('es-CO')}</Text>
+                                        </Text>
+                                    </SimpleGrid>
+                                </Box>
+                            )}
+                        </Box>
+                        
+                        <Divider />
+                        
+                        {/* Renovar Membresía */}
+                        <Box>
+                            <Checkbox 
+                                isChecked={editData.renovar_membresia}
+                                onChange={(e) => setEditData(prev => ({ ...prev, renovar_membresia: e.target.checked }))}
+                                colorScheme="green"
+                            >
+                                <Text fontWeight="bold" color="green.600">🔄 Renovar membresía</Text>
+                            </Checkbox>
+                            
+                            {editData.renovar_membresia && (
+                                <Box mt={3} p={4} bg="green.50" borderRadius="md" borderWidth="1px" borderColor="green.200">
+                                    <FormControl>
+                                        <FormLabel fontSize="sm">Precio de Renovación</FormLabel>
+                                        <NumberInput 
+                                            min={0}
+                                            value={editData.precio_membresia}
+                                            onChange={(valueString) => setEditData(prev => ({ ...prev, precio_membresia: valueString }))}
+                                            format={(val) => val ? `$${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}
+                                            parse={(val) => val.replace(/^\$/, '').replace(/\./g, '')}
+                                        >
+                                            <NumberInputField placeholder="60000" />
+                                            <NumberInputStepper>
+                                                <NumberIncrementStepper />
+                                                <NumberDecrementStepper />
+                                            </NumberInputStepper>
+                                        </NumberInput>
+                                    </FormControl>
+                                    <Text fontSize="xs" color="gray.600" mt={2}>
+                                        ℹ️ La fecha de vencimiento se calculará automáticamente según el tipo de membresía seleccionado
+                                    </Text>
+                                </Box>
+                            )}
+                        </Box>
+                    </VStack>
                 </ModalBody>
                 <ModalFooter>
                     <Button variant="ghost" mr={3} onClick={closeEditModal}>Cancelar</Button>
-                    <Button colorScheme="green" onClick={handleEditUsuario}>Guardar Cambios</Button>
+                    <Button 
+                        colorScheme="green" 
+                        onClick={handleEditUsuario}
+                        leftIcon={editData.renovar_membresia ? <FiRefreshCw /> : undefined}
+                    >
+                        {editData.renovar_membresia ? 'Guardar y Renovar' : 'Guardar Cambios'}
+                    </Button>
                 </ModalFooter>
             </ModalContent>
         </Modal>
