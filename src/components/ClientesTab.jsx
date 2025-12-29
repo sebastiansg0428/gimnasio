@@ -1,6 +1,6 @@
 // ClientesTab.jsx
 import React, { useState, useEffect } from 'react'
-import { usuariosAPI, authAPI } from '../services/api'
+import { usuariosAPI, authAPI, pagosAPI } from '../services/api'
 import { getRutinas, getRutinasUsuario, assignRutinaToUsuario } from '../utils/api'
 import {
     Box,
@@ -13,6 +13,7 @@ import {
     Button,
     Input,
     HStack,
+    VStack,
     Select,
     Text,
     Badge,
@@ -33,8 +34,28 @@ import {
     InputGroup,
     InputLeftElement,
     InputRightElement,
+    Tooltip,
+    Stat,
+    StatLabel,
+    StatNumber,
+    StatHelpText,
+    SimpleGrid,
+    Popover,
+    PopoverTrigger,
+    PopoverContent,
+    PopoverHeader,
+    PopoverBody,
+    PopoverArrow,
+    PopoverCloseButton,
+    Divider,
+    Checkbox,
+    NumberInput,
+    NumberInputField,
+    NumberInputStepper,
+    NumberIncrementStepper,
+    NumberDecrementStepper,
 } from '@chakra-ui/react'
-import { FiMoreVertical, FiSearch, FiUser, FiUserPlus, FiX, FiRefreshCw } from 'react-icons/fi'
+import { FiMoreVertical, FiSearch, FiUser, FiUserPlus, FiX, FiRefreshCw, FiCheckCircle, FiAlertCircle, FiClock } from 'react-icons/fi'
 
 // Función helper para formatear fechas
 const formatearFecha = (fecha) => {
@@ -81,12 +102,44 @@ const getGeneroColor = (genero) => {
     return 'gray'
 }
 
+// Función helper para calcular días hasta vencimiento
+const calcularDiasVencimiento = (fechaVencimiento) => {
+    if (!fechaVencimiento || fechaVencimiento === '-') return null
+    try {
+        // Parsear fecha en formato DD/MM/YYYY
+        let fecha
+        if (fechaVencimiento.includes('/')) {
+            const [dia, mes, año] = fechaVencimiento.split('/')
+            fecha = new Date(año, mes - 1, dia)
+        } else {
+            fecha = new Date(fechaVencimiento)
+        }
+        const hoy = new Date()
+        hoy.setHours(0, 0, 0, 0)
+        const diferencia = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24))
+        return diferencia
+    } catch {
+        return null
+    }
+}
+
+// Función helper para obtener estado de membresía
+const getEstadoMembresia = (fechaVencimiento) => {
+    const dias = calcularDiasVencimiento(fechaVencimiento)
+    if (dias === null) return { estado: 'sin-fecha', color: 'gray', texto: 'Sin fecha' }
+    if (dias < 0) return { estado: 'vencida', color: 'red', texto: 'Vencida' }
+    if (dias <= 7) return { estado: 'por-vencer', color: 'orange', texto: `Vence en ${dias}d` }
+    if (dias <= 15) return { estado: 'proximo', color: 'yellow', texto: `${dias} días` }
+    return { estado: 'activa', color: 'green', texto: `${dias} días` }
+}
+
 // Lista inicial vacía: mostrar solo usuarios provenientes del backend
 
 export default function ClientesTab() {
     const STORAGE_KEY = 'rg_clients'
 
     const [clientes, setClientes] = useState([])
+    const [pagosMap, setPagosMap] = useState({}) // Mapa de pagos por usuario_id
 
     // Estado real que aplica el filtro
     const [busqueda, setBusqueda] = useState('')
@@ -95,10 +148,37 @@ export default function ClientesTab() {
     const [filtroMembresia, setFiltroMembresia] = useState('todos')
     const toast = useToast()
     const [isOpen, setIsOpen] = useState(false)
-    const [newUser, setNewUser] = useState({ nombre: '', email: '', password: '', membresia: 'Mensual' })
+    const [newUser, setNewUser] = useState({ 
+        nombre: '', 
+        apellido: '',
+        email: '', 
+        password: '', 
+        telefono: '',
+        fecha_nacimiento: '',
+        genero: '',
+        membresia: 'DIARIA',
+        precio_membresia: '',
+        metodo_pago: 'efectivo',
+        registrar_pago: true
+    })
 
     const openModal = () => setIsOpen(true)
-    const closeModal = () => setIsOpen(false)
+    const closeModal = () => {
+        setIsOpen(false)
+        setNewUser({ 
+            nombre: '', 
+            apellido: '',
+            email: '', 
+            password: '', 
+            telefono: '',
+            fecha_nacimiento: '',
+            genero: '',
+            membresia: 'DIARIA',
+            precio_membresia: '',
+            metodo_pago: 'efectivo',
+            registrar_pago: true
+        })
+    }
     const [isAssignOpen, setIsAssignOpen] = useState(false)
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
     const [isEditOpen, setIsEditOpen] = useState(false)
@@ -111,7 +191,7 @@ export default function ClientesTab() {
         email: '',
         telefono: '',
         genero: '',
-        membresia: 'basica',
+        membresia: 'DIARIA',
         estado: 'activo'
     })
     const [selectedRutinaId, setSelectedRutinaId] = useState(null)
@@ -156,7 +236,7 @@ export default function ClientesTab() {
             email: cliente.email || '',
             telefono: cliente.telefono || '',
             genero: cliente.genero || '',
-            membresia: cliente.membresia || 'basica',
+            membresia: cliente.membresia || 'DIARIA',
             estado: cliente.estado || 'activo'
         })
         setIsEditOpen(true)
@@ -183,7 +263,7 @@ export default function ClientesTab() {
                 telefono: user.telefono || '',
                 fecha_nacimiento: user.fecha_nacimiento || null,
                 genero: user.genero || '',
-                membresia: user.membresia || 'basica',
+                membresia: (user.membresia || 'DIARIA').toUpperCase(),
                 estado: user.estado || 'activo',
                 fecha_vencimiento: user.fecha_vencimiento || null,
                 precio_membresia: user.precio_membresia || 0,
@@ -236,6 +316,23 @@ export default function ClientesTab() {
         async function fetchUsuarios() {
             try {
                 const usuarios = await usuariosAPI.getUsuarios()
+                
+                // Cargar todos los pagos de membresía
+                const pagos = await pagosAPI.getPagos({ tipo_pago: 'membresia' })
+                
+                // Crear mapa de último pago por usuario
+                const pagosporUsuario = {}
+                if (Array.isArray(pagos)) {
+                    pagos.forEach(pago => {
+                        const userId = pago.usuario_id
+                        if (!pagosporUsuario[userId] || new Date(pago.fecha_pago) > new Date(pagosporUsuario[userId].fecha_pago)) {
+                            pagosporUsuario[userId] = pago
+                        }
+                    })
+                }
+                
+                if (mounted) setPagosMap(pagosporUsuario)
+                
                 // Mapear usuarios a formato correcto según la base de datos
                 const clientesDeUsuarios = (usuarios || []).map((user) => ({
                     id: user.id,
@@ -245,7 +342,7 @@ export default function ClientesTab() {
                     telefono: user.telefono || '',
                     fecha_nacimiento: user.fecha_nacimiento || null,
                     genero: user.genero || '',
-                    membresia: user.membresia || 'basica',
+                    membresia: (user.membresia || 'DIARIA').toUpperCase(),
                     estado: user.estado || 'activo',
                     fecha_vencimiento: user.fecha_vencimiento || null,
                     precio_membresia: user.precio_membresia || 0,
@@ -286,6 +383,46 @@ export default function ClientesTab() {
         if (accion === 'rutina') return openAssignModal(cliente)
         if (accion === 'ver') return openDetailsModal(cliente)
         if (accion === 'editar') return openEditModal(cliente)
+        
+        if (accion === 'visita') {
+            usuariosAPI.registrarVisita(cliente.id)
+                .then(() => {
+                    setClientes(prev => prev.map(c => 
+                        c.id === cliente.id ? { 
+                            ...c, 
+                            total_visitas: (c.total_visitas || 0) + 1,
+                            ultima_visita: new Date().toLocaleDateString('es-ES')
+                        } : c
+                    ))
+                    toast({ 
+                        title: '✅ Visita registrada', 
+                        description: `Cliente: ${cliente.nombre} ${cliente.apellido}`,
+                        status: 'success', 
+                        duration: 2000 
+                    })
+                })
+                .catch(err => {
+                    console.error(err)
+                    toast({ title: 'Error al registrar visita', status: 'error', duration: 3000 })
+                })
+            return
+        }
+        
+        if (accion === 'activar') {
+            usuariosAPI.cambiarEstado(cliente.id, 'activo')
+                .then(() => {
+                    setClientes(prev => prev.map(c => 
+                        c.id === cliente.id ? { ...c, estado: 'activo' } : c
+                    ))
+                    toast({ title: 'Usuario activado', status: 'success', duration: 2000 })
+                })
+                .catch(err => {
+                    console.error(err)
+                    toast({ title: 'Error al activar usuario', status: 'error', duration: 3000 })
+                })
+            return
+        }
+        
         if (accion === 'desactivar') {
             usuariosAPI.cambiarEstado(cliente.id, 'inactivo')
                 .then(() => {
@@ -300,6 +437,7 @@ export default function ClientesTab() {
                 })
             return
         }
+        
         toast({
             title: `Acción: ${accion}`,
             description: `Para cliente: ${cliente.nombre}`,
@@ -309,41 +447,87 @@ export default function ClientesTab() {
     }
 
     async function handleCrearUsuario() {
-        if (!newUser.email || !newUser.password || !newUser.nombre) {
-            toast({ title: 'Completa nombre, email y contraseña', status: 'warning', duration: 2000 })
+        // Validaciones
+        if (!newUser.nombre || !newUser.nombre.trim()) {
+            toast({ title: 'El nombre es obligatorio', status: 'warning', duration: 2000 })
             return
         }
+        if (!newUser.email || !newUser.email.trim()) {
+            toast({ title: 'El email es obligatorio', status: 'warning', duration: 2000 })
+            return
+        }
+        if (!newUser.password || newUser.password.length < 6) {
+            toast({ title: 'La contraseña debe tener al menos 6 caracteres', status: 'warning', duration: 2000 })
+            return
+        }
+        if (newUser.registrar_pago && (!newUser.precio_membresia || newUser.precio_membresia <= 0)) {
+            toast({ title: 'El precio de la membresía es obligatorio', status: 'warning', duration: 2000 })
+            return
+        }
+        
         try {
+            // El backend ahora calcula automáticamente la fecha_vencimiento según el tipo de membresía
             const payload = { 
-                nombre: newUser.nombre, 
-                email: newUser.email, 
+                nombre: newUser.nombre.trim(),
+                apellido: newUser.apellido?.trim() || '',
+                email: newUser.email.trim(),
                 password: newUser.password,
-                membresia: newUser.membresia
+                telefono: newUser.telefono?.trim() || null,
+                fecha_nacimiento: newUser.fecha_nacimiento || null,
+                genero: newUser.genero || null,
+                membresia: newUser.membresia || 'DIARIA',
+                precio_membresia: newUser.registrar_pago ? parseFloat(newUser.precio_membresia) : null
             }
-            console.log('Enviando payload:', payload)
-            const created = await authAPI.register(payload)
-            console.log('Usuario creado:', created)
-            toast({ title: 'Usuario creado exitosamente', status: 'success', duration: 2000 })
-            setNewUser({ nombre: '', email: '', password: '', membresia: 'Mensual' })
+            
+            console.log('📦 Payload enviado al backend:', payload)
+            console.log('✨ El backend calculará automáticamente fecha_vencimiento según membresía:', newUser.membresia)
+            const usuarioCreado = await authAPI.register(payload)
+            
+            // Si se debe registrar el pago
+            if (newUser.registrar_pago && usuarioCreado?.usuario?.id) {
+                const fechaInicio = new Date()
+                
+                const pagoData = {
+                    usuario_id: usuarioCreado.usuario.id,
+                    tipo_pago: 'membresia',
+                    monto: parseFloat(newUser.precio_membresia),
+                    metodo_pago: newUser.metodo_pago,
+                    estado: 'completado',
+                    descripcion: `Membresía ${newUser.membresia}`,
+                    fecha_pago: fechaInicio.toISOString().split('T')[0]
+                }
+                
+                try {
+                    await pagosAPI.createPago(pagoData)
+                    console.log('Pago registrado exitosamente')
+                } catch (errPago) {
+                    console.error('Error al registrar pago:', errPago)
+                    toast({ 
+                        title: '⚠️ Cliente creado pero sin pago', 
+                        description: 'El pago no pudo ser registrado',
+                        status: 'warning', 
+                        duration: 3000 
+                    })
+                }
+            }
+            
+            toast({ 
+                title: '✅ Cliente creado', 
+                description: `${payload.nombre} ${payload.apellido}${newUser.registrar_pago ? ' - Pago registrado' : ''}`,
+                status: 'success', 
+                duration: 3000 
+            })
+            
             closeModal()
-            // Recargar usuarios
-            const usuarios = await usuariosAPI.getUsuarios()
-            const clientesFormateados = usuarios.map(user => ({
-                id: user.id,
-                usuario: user.nombre || user.name || user.username || (user.email ? user.email.split('@')[0] : ''),
-                nombre: user.nombre || user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
-                correo: user.email || user.correo || '',
-                membresia: user.membresia || 'Mensual',
-                estado: user.estado || 'Activo',
-                ultimaVisita: user.ultima_visita || new Date().toISOString().split('T')[0],
-                rutinasAsignadas: user.rutinas_asignadas || 0
-            }))
-            setClientes(clientesFormateados)
+            
+            // Recargar usuarios desde el backend
+            await refrescarDatos()
+            
         } catch (err) {
             console.error('Error completo:', err)
             toast({ 
-                title: 'Error al crear usuario', 
-                description: err.message || 'Error desconocido',
+                title: 'Error al crear cliente', 
+                description: err.message || 'Verifica los datos e intenta nuevamente',
                 status: 'error', 
                 duration: 3000 
             })
@@ -387,6 +571,23 @@ export default function ClientesTab() {
     const refrescarDatos = async () => {
         try {
             const usuarios = await usuariosAPI.getUsuarios()
+            
+            // Cargar todos los pagos de membresía
+            const pagos = await pagosAPI.getPagos({ tipo_pago: 'membresia' })
+            
+            // Crear mapa de último pago por usuario
+            const pagosporUsuario = {}
+            if (Array.isArray(pagos)) {
+                pagos.forEach(pago => {
+                    const userId = pago.usuario_id
+                    if (!pagosporUsuario[userId] || new Date(pago.fecha_pago) > new Date(pagosporUsuario[userId].fecha_pago)) {
+                        pagosporUsuario[userId] = pago
+                    }
+                })
+            }
+            
+            setPagosMap(pagosporUsuario)
+            
             const clientesDeUsuarios = (usuarios || []).map((user) => ({
                 id: user.id,
                 nombre: user.nombre || '',
@@ -395,7 +596,7 @@ export default function ClientesTab() {
                 telefono: user.telefono || '',
                 fecha_nacimiento: user.fecha_nacimiento || null,
                 genero: user.genero || '',
-                membresia: user.membresia || 'basica',
+                membresia: (user.membresia || 'DIARIA').toUpperCase(),
                 estado: user.estado || 'activo',
                 fecha_vencimiento: user.fecha_vencimiento || null,
                 precio_membresia: user.precio_membresia || 0,
@@ -415,7 +616,56 @@ export default function ClientesTab() {
     return (
         <>
         <Box>
-            <HStack mb={6} spacing={4} align="center">
+            {/* Estadísticas rápidas */}
+            <SimpleGrid columns={{ base: 1, md: 4 }} spacing={4} mb={6}>
+                <Box bg="white" p={4} borderRadius="lg" boxShadow="sm">
+                    <Stat>
+                        <StatLabel color="gray.600">Total Clientes</StatLabel>
+                        <StatNumber color="green.600">{clientes.length}</StatNumber>
+                        <StatHelpText>
+                            Activos: {clientes.filter(c => c.estado === 'activo').length}
+                        </StatHelpText>
+                    </Stat>
+                </Box>
+                <Box bg="white" p={4} borderRadius="lg" boxShadow="sm">
+                    <Stat>
+                        <StatLabel color="gray.600">Membresías por Vencer</StatLabel>
+                        <StatNumber color="orange.600">
+                            {clientes.filter(c => {
+                                const dias = calcularDiasVencimiento(c.fecha_vencimiento)
+                                return dias !== null && dias >= 0 && dias <= 7
+                            }).length}
+                        </StatNumber>
+                        <StatHelpText>Próximos 7 días</StatHelpText>
+                    </Stat>
+                </Box>
+                <Box bg="white" p={4} borderRadius="lg" boxShadow="sm">
+                    <Stat>
+                        <StatLabel color="gray.600">Membresías Vencidas</StatLabel>
+                        <StatNumber color="red.600">
+                            {clientes.filter(c => {
+                                const dias = calcularDiasVencimiento(c.fecha_vencimiento)
+                                return dias !== null && dias < 0
+                            }).length}
+                        </StatNumber>
+                        <StatHelpText>Requieren renovación</StatHelpText>
+                    </Stat>
+                </Box>
+                <Box bg="white" p={4} borderRadius="lg" boxShadow="sm">
+                    <Stat>
+                        <StatLabel color="gray.600">Visitas Hoy</StatLabel>
+                        <StatNumber color="blue.600">
+                            {clientes.filter(c => {
+                                const hoy = new Date().toLocaleDateString('es-ES')
+                                return c.ultima_visita && c.ultima_visita.includes(hoy.split('/')[0])
+                            }).length}
+                        </StatNumber>
+                        <StatHelpText>Registradas</StatHelpText>
+                    </Stat>
+                </Box>
+            </SimpleGrid>
+
+            <HStack mb={6} spacing={4} align="center" flexWrap="wrap">
                 <Button 
                     leftIcon={<FiUserPlus />}
                     colorScheme="green"
@@ -481,9 +731,10 @@ export default function ClientesTab() {
                     _hover={{ borderColor: "green.400" }}
                 >
                     <option value="todos">Todas las membresías</option>
-                    <option value="basica">Básica</option>
-                    <option value="premium">Premium</option>
-                    <option value="vip">VIP</option>
+                    <option value="DIARIA">Diaria</option>
+                    <option value="SEMANAL">Semanal</option>
+                    <option value="QUINCENAL">Quincenal</option>
+                    <option value="ANUAL">Anual</option>
                 </Select>
             </HStack>
 
@@ -498,7 +749,6 @@ export default function ClientesTab() {
                             <Th>Género</Th>
                             <Th>Membresía</Th>
                             <Th>Estado</Th>
-                            <Th>Vencimiento</Th>
                             <Th>Última Visita</Th>
                             <Th>Total Visitas</Th>
                             <Th>Acciones</Th>
@@ -507,7 +757,7 @@ export default function ClientesTab() {
                     <Tbody>
                         {clientesFiltrados.length === 0 ? (
                             <Tr>
-                                <Td colSpan={11} textAlign="center" color="gray.500">
+                                <Td colSpan={10} textAlign="center" color="gray.500">
                                     No hay clientes que coincidan con la búsqueda
                                 </Td>
                             </Tr>
@@ -532,24 +782,103 @@ export default function ClientesTab() {
                                         </Badge>
                                     </Td>
                                     <Td>
-                                        <Badge colorScheme={
-                                            cliente.membresia === 'vip' ? 'purple' : 
-                                            cliente.membresia === 'premium' ? 'blue' : 
-                                            'green'
-                                        }>
-                                            {cliente.membresia}
-                                        </Badge>
+                                        <Popover placement="right">
+                                            <PopoverTrigger>
+                                                <Button size="sm" variant="ghost" p={0} h="auto">
+                                                    <Badge 
+                                                        colorScheme={
+                                                            cliente.membresia === 'ANUAL' ? 'purple' : 
+                                                            cliente.membresia === 'QUINCENAL' ? 'blue' : 
+                                                            cliente.membresia === 'SEMANAL' ? 'green' :
+                                                            'orange'
+                                                        }
+                                                        fontSize="sm"
+                                                    >
+                                                        {cliente.membresia?.toUpperCase()}
+                                                    </Badge>
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent width="300px">
+                                                <PopoverArrow />
+                                                <PopoverCloseButton />
+                                                <PopoverHeader fontWeight="bold" borderBottomWidth="1px">
+                                                    Información de Membresía
+                                                </PopoverHeader>
+                                                <PopoverBody>
+                                                    <VStack align="stretch" spacing={2}>
+                                                        <HStack justify="space-between">
+                                                            <Text fontSize="sm" color="gray.600">Tipo:</Text>
+                                                            <Badge colorScheme={
+                                                                cliente.membresia === 'ANUAL' ? 'purple' : 
+                                                                cliente.membresia === 'QUINCENAL' ? 'blue' : 
+                                                                cliente.membresia === 'SEMANAL' ? 'green' :
+                                                                'orange'
+                                                            }>
+                                                                {cliente.membresia}
+                                                            </Badge>
+                                                        </HStack>
+                                                        
+                                                        {pagosMap[cliente.id] ? (
+                                                            <>
+                                                                <Divider />
+                                                                <HStack justify="space-between">
+                                                                    <Text fontSize="sm" color="gray.600">Fecha de Pago:</Text>
+                                                                    <Text fontSize="sm" fontWeight="medium">
+                                                                        {formatearFecha(pagosMap[cliente.id].fecha_pago)}
+                                                                    </Text>
+                                                                </HStack>
+                                                                <HStack justify="space-between">
+                                                                    <Text fontSize="sm" color="gray.600">Monto Pagado:</Text>
+                                                                    <Text fontSize="sm" fontWeight="bold" color="green.600">
+                                                                        ${Number(pagosMap[cliente.id].monto).toLocaleString('es-CO')}
+                                                                    </Text>
+                                                                </HStack>
+                                                                <HStack justify="space-between">
+                                                                    <Text fontSize="sm" color="gray.600">Estado Pago:</Text>
+                                                                    <Badge colorScheme={pagosMap[cliente.id].estado === 'completado' ? 'green' : 'orange'}>
+                                                                        {pagosMap[cliente.id].estado}
+                                                                    </Badge>
+                                                                </HStack>
+                                                                {pagosMap[cliente.id].descripcion && (
+                                                                    <>
+                                                                        <Divider />
+                                                                        <Text fontSize="xs" color="gray.500">
+                                                                            {pagosMap[cliente.id].descripcion}
+                                                                        </Text>
+                                                                    </>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Divider />
+                                                                <HStack justify="space-between">
+                                                                    <Text fontSize="sm" color="gray.600">Precio:</Text>
+                                                                    <Text fontSize="sm" fontWeight="bold" color="green.600">
+                                                                        ${Number(cliente.precio_membresia || 0).toLocaleString('es-CO')}
+                                                                    </Text>
+                                                                </HStack>
+                                                                <HStack justify="space-between">
+                                                                    <Text fontSize="sm" color="gray.600">Vencimiento:</Text>
+                                                                    <Text fontSize="sm" fontWeight="medium">
+                                                                        {formatearFecha(cliente.fecha_vencimiento)}
+                                                                    </Text>
+                                                                </HStack>
+                                                                <Divider />
+                                                                <Text fontSize="xs" color="orange.500" fontStyle="italic">
+                                                                    Sin registro de pago
+                                                                </Text>
+                                                            </>
+                                                        )}
+                                                    </VStack>
+                                                </PopoverBody>
+                                            </PopoverContent>
+                                        </Popover>
                                     </Td>
                                     <Td>
                                         <Badge colorScheme={cliente.estado === 'activo' ? 'green' : 'red'}>
                                             {cliente.estado}
-                                    </Badge>
-                                </Td>
-                                <Td>
-                                    <Text fontSize="sm" color="gray.600">
-                                        {formatearFecha(cliente.fecha_vencimiento)}
-                                    </Text>
-                                </Td>
+                                        </Badge>
+                                    </Td>
                                 <Td>
                                     <Text fontSize="sm" color="gray.600">
                                         {formatearFecha(cliente.ultima_visita)}
@@ -564,10 +893,20 @@ export default function ClientesTab() {
                                     <Menu>
                                         <MenuButton as={IconButton} icon={<FiMoreVertical />} variant="ghost" size="sm" />
                                         <MenuList color="gray.600">
-                                            <MenuItem onClick={() => handleAccion('ver', cliente) }>Ver detalles</MenuItem>
+                                            <MenuItem 
+                                                icon={<FiCheckCircle />}
+                                                onClick={() => handleAccion('visita', cliente)}
+                                            >
+                                                Registrar Visita
+                                            </MenuItem>
+                                            <MenuItem onClick={() => handleAccion('ver', cliente)}>Ver detalles</MenuItem>
                                             <MenuItem onClick={() => handleAccion('editar', cliente)}>Editar</MenuItem>
                                             <MenuItem onClick={() => handleAccion('rutina', cliente)}>Asignar rutina</MenuItem>
-                                            <MenuItem onClick={() => handleAccion('desactivar', cliente)}>Desactivar</MenuItem>
+                                            {cliente.estado === 'activo' ? (
+                                                <MenuItem onClick={() => handleAccion('desactivar', cliente)}>Desactivar</MenuItem>
+                                            ) : (
+                                                <MenuItem onClick={() => handleAccion('activar', cliente)} color="green.500">Activar</MenuItem>
+                                            )}
                                             <MenuItem onClick={() => handleEliminarUsuario(cliente)} color="red.500">Eliminar</MenuItem>
                                         </MenuList>
                                     </Menu>
@@ -581,36 +920,166 @@ export default function ClientesTab() {
         </Box>
         
         {/* Modal Crear Usuario */}
-        <Modal isOpen={isOpen} onClose={closeModal}>
+        <Modal isOpen={isOpen} onClose={closeModal} size="lg">
             <ModalOverlay />
             <ModalContent>
                 <ModalHeader>Nuevo Cliente</ModalHeader>
                 <ModalBody>
-                    <FormControl mb={3}>
-                        <FormLabel>Nombre</FormLabel>
-                        <Input value={newUser.nombre} onChange={(e) => setNewUser(s => ({ ...s, nombre: e.target.value }))} />
-                    </FormControl>
-                    <FormControl mb={3}>
+                    <SimpleGrid columns={2} spacing={3}>
+                        <FormControl isRequired>
+                            <FormLabel>Nombre</FormLabel>
+                            <Input 
+                                placeholder="Ej: Juan"
+                                value={newUser.nombre} 
+                                onChange={(e) => setNewUser(s => ({ ...s, nombre: e.target.value }))} 
+                            />
+                        </FormControl>
+                        <FormControl>
+                            <FormLabel>Apellido</FormLabel>
+                            <Input 
+                                placeholder="Ej: Pérez"
+                                value={newUser.apellido} 
+                                onChange={(e) => setNewUser(s => ({ ...s, apellido: e.target.value }))} 
+                            />
+                        </FormControl>
+                    </SimpleGrid>
+                    
+                    <FormControl mt={3} isRequired>
                         <FormLabel>Email</FormLabel>
-                        <Input value={newUser.email} onChange={(e) => setNewUser(s => ({ ...s, email: e.target.value }))} />
+                        <Input 
+                            type="email"
+                            placeholder="ejemplo@email.com"
+                            value={newUser.email} 
+                            onChange={(e) => setNewUser(s => ({ ...s, email: e.target.value }))} 
+                        />
                     </FormControl>
-                    <FormControl mb={3}>
+                    
+                    <FormControl mt={3} isRequired>
                         <FormLabel>Contraseña</FormLabel>
-                        <Input type="password" value={newUser.password} onChange={(e) => setNewUser(s => ({ ...s, password: e.target.value }))} />
+                        <Input 
+                            type="password" 
+                            placeholder="Mínimo 6 caracteres"
+                            value={newUser.password} 
+                            onChange={(e) => setNewUser(s => ({ ...s, password: e.target.value }))} 
+                        />
                     </FormControl>
-                    <FormControl>
-                        <FormLabel>Membresía</FormLabel>
-                        <Select value={newUser.membresia} onChange={(e) => setNewUser(s => ({ ...s, membresia: e.target.value }))}>
-                            <option>Mensual</option>
-                            <option>Diaria/ Pase del dia</option>
-                            <option>Semanal</option>
-                            <option>Anual</option>
-                        </Select>
-                    </FormControl>
+                    
+                    <SimpleGrid columns={2} spacing={3} mt={3}>
+                        <FormControl>
+                            <FormLabel>Teléfono</FormLabel>
+                            <Input 
+                                placeholder="555-0001"
+                                value={newUser.telefono} 
+                                onChange={(e) => setNewUser(s => ({ ...s, telefono: e.target.value }))} 
+                            />
+                        </FormControl>
+                        
+                        <FormControl>
+                            <FormLabel>Género</FormLabel>
+                            <Select 
+                                value={newUser.genero} 
+                                onChange={(e) => setNewUser(s => ({ ...s, genero: e.target.value }))}
+                            >
+                                <option value="">Seleccionar...</option>
+                                <option value="M">Masculino</option>
+                                <option value="F">Femenino</option>
+                                <option value="Otro">Otro</option>
+                            </Select>
+                        </FormControl>
+                    </SimpleGrid>
+                    
+                    <SimpleGrid columns={2} spacing={3} mt={3}>
+                        <FormControl>
+                            <FormLabel>Fecha de Nacimiento</FormLabel>
+                            <Input 
+                                type="date"
+                                value={newUser.fecha_nacimiento} 
+                                onChange={(e) => setNewUser(s => ({ ...s, fecha_nacimiento: e.target.value }))} 
+                            />
+                        </FormControl>
+                        
+                        <FormControl>
+                            <FormLabel>Membresía</FormLabel>
+                            <Select 
+                                value={newUser.membresia} 
+                                onChange={(e) => setNewUser(s => ({ ...s, membresia: e.target.value }))}
+                            >
+                                <option value="DIARIA">Diaria</option>
+                                <option value="SEMANAL">Semanal</option>
+                                <option value="QUINCENAL">Quincenal</option>
+                                <option value="ANUAL">Anual</option>
+                            </Select>
+                        </FormControl>
+                    </SimpleGrid>
+                    
+                    {/* Sección de Pago */}
+                    <Box mt={4} p={4} bg="gray.50" borderRadius="md" borderWidth="1px" borderColor="gray.200">
+                        <Checkbox 
+                            isChecked={newUser.registrar_pago}
+                            onChange={(e) => setNewUser(s => ({ ...s, registrar_pago: e.target.checked }))}
+                            colorScheme="green"
+                            mb={3}
+                        >
+                            <Text fontWeight="bold">Registrar pago de membresía</Text>
+                        </Checkbox>
+                        
+                        {newUser.registrar_pago && (
+                            <VStack spacing={3} align="stretch">
+                                <SimpleGrid columns={2} spacing={3}>
+                                    <FormControl isRequired>
+                                        <FormLabel fontSize="sm">Precio Membresía</FormLabel>
+                                        <NumberInput 
+                                            min={0}
+                                            value={newUser.precio_membresia}
+                                            onChange={(valueString) => setNewUser(s => ({ ...s, precio_membresia: valueString }))}
+                                            format={(val) => val ? `$${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}
+                                            parse={(val) => val.replace(/^\$/, '').replace(/\./g, '')}
+                                        >
+                                            <NumberInputField placeholder="60000" />
+                                            <NumberInputStepper>
+                                                <NumberIncrementStepper />
+                                                <NumberDecrementStepper />
+                                            </NumberInputStepper>
+                                        </NumberInput>
+                                    </FormControl>
+                                </SimpleGrid>
+                                
+                                <FormControl>
+                                    <FormLabel fontSize="sm">Método de Pago</FormLabel>
+                                    <Select 
+                                        size="sm"
+                                        value={newUser.metodo_pago} 
+                                        onChange={(e) => setNewUser(s => ({ ...s, metodo_pago: e.target.value }))}
+                                    >
+                                        <option value="efectivo">Efectivo</option>
+                                        <option value="tarjeta">Tarjeta</option>
+                                        <option value="transferencia">Transferencia</option>
+                                        <option value="nequi">Nequi</option>
+                                        <option value="daviplata">Daviplata</option>
+                                    </Select>
+                                </FormControl>
+                                
+                                {newUser.precio_membresia > 0 && (
+                                    <Box p={2} bg="green.50" borderRadius="md" borderWidth="1px" borderColor="green.200">
+                                        <Text fontSize="sm" color="gray.600">
+                                            💰 Total a pagar: <Text as="span" fontWeight="bold" color="green.700" fontSize="md">
+                                                ${parseInt(newUser.precio_membresia || 0).toLocaleString('es-CO')}
+                                            </Text>
+                                        </Text>
+                                        <Text fontSize="xs" color="gray.500">
+                                            Válido por {newUser.duracion_dias} días
+                                        </Text>
+                                    </Box>
+                                )}
+                            </VStack>
+                        )}
+                    </Box>
                 </ModalBody>
                 <ModalFooter>
                     <Button variant="ghost" mr={3} onClick={closeModal}>Cancelar</Button>
-                    <Button colorScheme="green" onClick={handleCrearUsuario}>Crear</Button>
+                    <Button colorScheme="green" onClick={handleCrearUsuario}>
+                        {newUser.registrar_pago ? 'Crear Cliente y Registrar Pago' : 'Crear Cliente'}
+                    </Button>
                 </ModalFooter>
             </ModalContent>
         </Modal>
@@ -722,9 +1191,10 @@ export default function ClientesTab() {
                             value={editData.membresia} 
                             onChange={(e) => setEditData(prev => ({ ...prev, membresia: e.target.value }))}
                         >
-                            <option value="basica">Básica</option>
-                            <option value="premium">Premium</option>
-                            <option value="vip">VIP</option>
+                            <option value="DIARIA">Diaria</option>
+                            <option value="SEMANAL">Semanal</option>
+                            <option value="QUINCENAL">Quincenal</option>
+                            <option value="ANUAL">Anual</option>
                         </Select>
                     </FormControl>
                     <FormControl>

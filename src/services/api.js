@@ -86,3 +86,26 @@ export const authAPI = {
         body: JSON.stringify(userData)
     })
 }
+
+// PAGOS
+export const pagosAPI = {
+    getPagos: (filtros = {}) => {
+        const params = new URLSearchParams(filtros)
+        return apiRequest(`/pagos?${params}`)
+    },
+    getPago: (id) => apiRequest(`/pagos/${id}`),
+    createPago: (data) => apiRequest('/pagos', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    updatePago: (id, data) => apiRequest(`/pagos/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    }),
+    deletePago: (id) => apiRequest(`/pagos/${id}`, { method: 'DELETE' }),
+    renovarMembresia: (data) => apiRequest('/pagos/renovar-membresia', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    getEstadisticas: () => apiRequest('/pagos/estadisticas')
+}
