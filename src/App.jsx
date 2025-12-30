@@ -27,45 +27,6 @@ function App() {
     <Box minH="100vh" bgGradient={bgGradient} color={textColor} className="gym-gradient">
       <Container maxW="100%" py={6}>
         <ErrorBoundary>
-          <Flex 
-            as="header" 
-            mb={6} 
-            align="center" 
-            bg={headerBg}
-            p={4}
-            borderRadius="lg"
-            boxShadow="sm"
-            className="gym-card"
-          >
-            <Heading size="md" color="green.400" fontWeight="bold">
-              💪 Reynal-GYM
-            </Heading>
-            <Spacer />
-            {!isAuth() && (
-              <>
-                <Link 
-                  as={RouterLink} 
-                  to="/login" 
-                  mr={4} 
-                  color="green.400"
-                  fontWeight="medium"
-                  _hover={{ color: 'green.300', textDecoration: 'none' }}
-                >
-                  Iniciar Sesión
-                </Link>
-                <Link 
-                  as={RouterLink} 
-                  to="/register" 
-                  color="green.400"
-                  fontWeight="medium"
-                  _hover={{ color: 'green.300', textDecoration: 'none' }}
-                >
-                  Registrarse
-                </Link>
-              </>
-            )}
-          </Flex>
-
           <Box 
             bg={headerBg} 
             p={6} 

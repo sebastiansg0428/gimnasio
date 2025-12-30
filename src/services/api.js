@@ -12,7 +12,10 @@ async function apiRequest(endpoint, options = {}) {
     }
 
     try {
+        console.log(`🔵 API Request: ${options.method || 'GET'} ${url}`)
         const response = await fetch(url, config)
+        console.log(`✅ API Response: ${response.status} ${response.statusText}`)
+        
         const contentType = response.headers.get('content-type') || ''
         let data = null
         
@@ -24,12 +27,23 @@ async function apiRequest(endpoint, options = {}) {
         
         if (!response.ok) {
             const msg = data?.message || (typeof data === 'string' ? data : 'Error en la petición')
+            console.error(`❌ API Error: ${response.status} - ${msg}`)
             throw new Error(msg)
         }
         
+        console.log(`📦 API Data:`, data)
         return data
     } catch (error) {
-        console.error('API Error:', error)
+        // Detectar error de CORS
+        if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+            console.error('🚫 ERROR DE CORS: El backend no permite peticiones desde el frontend')
+            console.error('Soluciones:')
+            console.error('1. Verifica que el backend esté corriendo en http://localhost:3001')
+            console.error('2. Asegúrate de que el backend tenga CORS configurado correctamente')
+            console.error('3. Revisa la consola del navegador para más detalles')
+            throw new Error('Error de conexión con el backend. Verifica que esté corriendo y tenga CORS habilitado.')
+        }
+        console.error('❌ API Error:', error)
         throw error
     }
 }
@@ -113,4 +127,9 @@ export const pagosAPI = {
         body: JSON.stringify(data)
     }),
     getEstadisticas: () => apiRequest('/pagos/estadisticas')
+}
+
+// DASHBOARD
+export const dashboardAPI = {
+    getDashboard: () => apiRequest('/dashboard')
 }
