@@ -54,8 +54,13 @@ export const usuariosAPI = {
 // PRODUCTOS
 export const productosAPI = {
     getProductos: (filtros = {}) => {
-        const params = new URLSearchParams(filtros)
-        return apiRequest(`/productos?${params}`)
+        // Solo agregar parámetros si realmente hay filtros
+        const keys = Object.keys(filtros)
+        if (keys.length > 0) {
+            const params = new URLSearchParams(filtros)
+            return apiRequest(`/productos?${params}`)
+        }
+        return apiRequest('/productos')
     },
     getProducto: (id) => apiRequest(`/productos/${id}`),
     createProducto: (data) => apiRequest('/productos', {
