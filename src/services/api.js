@@ -131,5 +131,11 @@ export const pagosAPI = {
 
 // DASHBOARD
 export const dashboardAPI = {
-    getDashboard: () => apiRequest('/dashboard')
+    getDashboard: () => apiRequest('/dashboard'),
+    getReporteIngresosMensuales: () => apiRequest('/reportes/ingresos-mensuales'),
+    getReporteUsuariosNuevos: () => apiRequest('/reportes/usuarios-nuevos-mensuales'),
+    getProductosMasVendidos: () => apiRequest('/reportes/productos-mas-vendidos'),
+    getRutinasPopulares: () => apiRequest('/reportes/rutinas-populares'),
+    getMembresiasPorVencer: () => apiRequest('/reportes/usuarios-con-membresia-por-vencer'),
+    getUsuariosInactivos: () => apiRequest('/reportes/usuarios-inactivos')
 }

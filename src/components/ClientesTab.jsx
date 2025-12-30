@@ -257,8 +257,23 @@ export default function ClientesTab() {
         if (!selectedClienteForEdit) return
         
         try {
-            // Actualizar datos del usuario
-            await usuariosAPI.updateUsuario(selectedClienteForEdit.id, editData)
+            console.log('🔄 EDITANDO USUARIO:', {
+                id: selectedClienteForEdit.id,
+                datosActuales: selectedClienteForEdit,
+                datosNuevos: editData
+            })
+            
+            // Si cambió el estado, usar el endpoint específico
+            if (editData.estado !== selectedClienteForEdit.estado) {
+                console.log('🔄 CAMBIANDO ESTADO de', selectedClienteForEdit.estado, 'a', editData.estado)
+                await usuariosAPI.cambiarEstado(selectedClienteForEdit.id, editData.estado)
+                console.log('✅ ESTADO ACTUALIZADO')
+            }
+            
+            // Actualizar el resto de datos del usuario (sin el estado, ya se actualizó arriba)
+            const { estado, ...datosRestantes } = editData
+            const resultado = await usuariosAPI.updateUsuario(selectedClienteForEdit.id, datosRestantes)
+            console.log('✅ USUARIO ACTUALIZADO:', resultado)
             
             // Si se marcó renovar membresía, registrar nuevo pago
             if (editData.renovar_membresia && editData.precio_membresia) {
@@ -292,7 +307,9 @@ export default function ClientesTab() {
             }
             
             // Recargar todos los datos
+            console.log('🔄 RECARGANDO DATOS...')
             await refrescarDatos()
+            console.log('✅ DATOS RECARGADOS')
             
             toast({ 
                 title: '✅ Usuario actualizado', 
@@ -398,6 +415,15 @@ export default function ClientesTab() {
             (cliente.membresia && cliente.membresia.toLowerCase() === filtroMembresia.toLowerCase())
         return coincideBusqueda && coincideMembresia
     })
+    
+    console.log('🔍 FILTRO DE CLIENTES:', {
+        totalClientes: clientes.length,
+        clientesFiltrados: clientesFiltrados.length,
+        estadosEnLista: clientes.map(c => ({ id: c.id, nombre: c.nombre, estado: c.estado })),
+        filtroMembresia,
+        busqueda
+    })
+
 
     const handleAccion = (accion, cliente) => {
         if (accion === 'rutina') return openAssignModal(cliente)
@@ -590,7 +616,10 @@ export default function ClientesTab() {
 
     const refrescarDatos = async () => {
         try {
+            console.log('📡 OBTENIENDO USUARIOS DEL BACKEND...')
             const usuarios = await usuariosAPI.getUsuarios()
+            console.log('✅ USUARIOS OBTENIDOS:', usuarios.length, 'usuarios')
+            console.log('📊 ESTADOS:', usuarios.map(u => ({ id: u.id, nombre: u.nombre, estado: u.estado })))
             
             // Cargar todos los pagos de membresía
             const pagos = await pagosAPI.getPagos({ tipo_pago: 'membresia' })
@@ -626,6 +655,7 @@ export default function ClientesTab() {
                 updated_at: user.updated_at || null,
             }))
             setClientes(clientesDeUsuarios)
+            console.log('✅ CLIENTES ACTUALIZADOS EN EL ESTADO')
             toast({ title: 'Datos actualizados', status: 'success', duration: 1500 })
         } catch (err) {
             console.error('Error refrescando datos:', err)

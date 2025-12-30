@@ -28,7 +28,12 @@ import {
     Spinner,
     SimpleGrid,
     Progress,
+    Alert,
+    AlertIcon,
+    AlertTitle,
+    AlertDescription,
 } from '@chakra-ui/react'
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts'
 import ClientesTab from '../components/ClientesTab'
 import RutinasTab from '../components/RutinasTab'
 import EjerciciosTab from '../components/EjerciciosTab'
@@ -42,11 +47,13 @@ import { useNavigate } from 'react-router-dom'
 import { logout, getCurrentUser } from '../utils/auth'
 import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck, FiBox, FiTarget, FiTrendingUp, FiClock } from 'react-icons/fi'
 import { useState, useEffect } from 'react'
-import { usuariosAPI, pagosAPI } from '../services/api'
+import { usuariosAPI, pagosAPI, dashboardAPI } from '../services/api'
 
 // Componente para la vista general (Home)
 function HomeTab() {
     const [dashboardData, setDashboardData] = useState(null)
+    const [alertas, setAlertas] = useState([])
+    const [ingresosMensuales, setIngresosMensuales] = useState([])
     const [loading, setLoading] = useState(true)
     const toast = useToast()
 
@@ -54,9 +61,9 @@ function HomeTab() {
         const cargarDashboard = async () => {
             try {
                 setLoading(true)
-                console.log('🔄 Cargando dashboard...')
+                console.log('🔄 Cargando dashboard mejorado...')
                 
-                // Usar endpoints individuales disponibles
+                // Cargar datos usando endpoints individuales
                 const [usuarios, pagos] = await Promise.all([
                     usuariosAPI.getUsuarios().catch(err => {
                         console.error('Error cargando usuarios:', err)
@@ -71,50 +78,37 @@ function HomeTab() {
                 console.log('✅ Usuarios cargados:', usuarios.length)
                 console.log('✅ Pagos cargados:', pagos.length)
                 
-                // Ver todos los pagos con detalles
-                pagos.forEach((p, i) => {
-                    console.log(`Pago ${i+1}:`, {
-                        id: p.id,
-                        monto: p.monto,
-                        estado: p.estado,
-                        fecha_pago: p.fecha_pago,
-                        created_at: p.created_at
-                    })
-                })
-                
-                // Calcular estadísticas desde los datos
+                // Calcular estadísticas manualmente
                 const clientesActivos = usuarios.filter(u => u.estado === 'activo').length
                 const clientesInactivos = usuarios.length - clientesActivos
-                const clientesConMembresia = usuarios.filter(u => {
-                    if (!u.fecha_vencimiento) return false
-                    return new Date(u.fecha_vencimiento) > new Date()
-                }).length
                 
-                // Calcular ingresos - SIMPLIFICADO (todos los pagos con estado pagado o completado)
                 const pagosValidos = pagos.filter(p => p.estado === 'pagado' || p.estado === 'completado')
-                console.log('💰 Pagos válidos (pagado/completado):', pagosValidos.length)
+                console.log('💰 Pagos válidos:', pagosValidos.length)
                 
                 const ingresosMes = pagosValidos.reduce((sum, p) => {
-                    const monto = parseFloat(p.monto) || 0
-                    console.log(`  - Sumando pago: $${monto}`)
+                    const monto = parseFloat(p.monto || 0)
                     return sum + monto
                 }, 0)
                 console.log('💵 Total ingresos:', ingresosMes)
                 
-                // Nuevos clientes del mes
                 const now = new Date()
                 const nuevosClientes = usuarios.filter(u => {
-                    const fechaCreacion = new Date(u.created_at || u.fecha_inscripcion)
-                    return fechaCreacion.getMonth() === now.getMonth() && 
-                           fechaCreacion.getFullYear() === now.getFullYear()
+                    const fecha = new Date(u.created_at || u.fecha_inscripcion)
+                    return fecha.getMonth() === now.getMonth() && fecha.getFullYear() === now.getFullYear()
+                }).length
+                
+                const clientesConMembresia = usuarios.filter(u => {
+                    if (!u.fecha_vencimiento) return false
+                    return new Date(u.fecha_vencimiento) > now
                 }).length
                 
                 console.log('📊 Datos calculados:', {
-                    totalClientes: usuarios.length,
+                    total: usuarios.length,
                     activos: clientesActivos,
                     inactivos: clientesInactivos,
-                    ingresosMes: ingresosMes,
-                    nuevosClientes: nuevosClientes
+                    nuevosEsteMes: nuevosClientes,
+                    conMembresia: clientesConMembresia,
+                    ingresosMes: ingresosMes
                 })
                 
                 // Actividad reciente (últimos pagos)
@@ -124,9 +118,16 @@ function HomeTab() {
                     .slice(0, 5)
                     .map(p => {
                         const usuario = usuarios.find(u => u.id === p.usuario_id)
-                        const tiempo = calcularTiempoRelativo(new Date(p.created_at))
+                        const fecha = new Date(p.created_at)
+                        const ahora = new Date()
+                        const diferencia = Math.floor((ahora - fecha) / 1000)
+                        let tiempo = 'Hace un momento'
+                        if (diferencia >= 60) tiempo = `Hace ${Math.floor(diferencia / 60)} min`
+                        if (diferencia >= 3600) tiempo = `Hace ${Math.floor(diferencia / 3600)} h`
+                        if (diferencia >= 86400) tiempo = `Hace ${Math.floor(diferencia / 86400)} días`
+                        
                         return {
-                            tipo: p.tipo_pago === 'membresia' ? 'pago' : 'pago',
+                            tipo: 'pago',
                             descripcion: `Pago de ${p.tipo_pago} - ${usuario?.nombre || 'Cliente'} ${usuario?.apellido || ''}`,
                             tiempo: tiempo
                         }
@@ -138,59 +139,65 @@ function HomeTab() {
                         activos: clientesActivos,
                         inactivos: clientesInactivos,
                         asistenciaHoy: Math.floor(clientesActivos * 0.4),
-                        cambioAsistencia: 15,
-                        conMembresia: clientesConMembresia,
                         nuevosEsteMes: nuevosClientes,
-                        tasaRenovacion: clientesConMembresia > 0 ? Math.round((clientesConMembresia / usuarios.length) * 100) : 0
+                        conMembresia: clientesConMembresia,
+                        tasaRenovacion: usuarios.length > 0 ? Math.round((clientesConMembresia / usuarios.length) * 100) : 0,
+                        cambioAsistencia: 0
                     },
                     ingresos: {
                         totalMes: ingresosMes,
-                        cambio: 8.5,
+                        cambio: 100.0,
                         promedioPorCliente: usuarios.length > 0 ? Math.round(ingresosMes / usuarios.length) : 0
                     },
-                    rutinas: {
-                        activas: Math.floor(clientesActivos * 0.7),
-                        total: Math.floor(usuarios.length * 1.2),
-                        nuevasEstaSemana: Math.floor(nuevosClientes * 1.5)
-                    },
+                    rutinas: { activas: 5, total: 12, nuevasEstaSemana: 0 },
                     actividadReciente: actividadReciente
                 })
+                
+                // Cargar reportes adicionales en paralelo
+                const [membresiasVencer, usuariosInactivos, ingresos] = await Promise.all([
+                    dashboardAPI.getMembresiasPorVencer().catch(() => []),
+                    dashboardAPI.getUsuariosInactivos().catch(() => []),
+                    dashboardAPI.getReporteIngresosMensuales().catch(() => [])
+                ])
+                
+                setIngresosMensuales(ingresos)
+                
+                // Crear alertas
+                const nuevasAlertas = []
+                if (membresiasVencer?.length > 0) {
+                    nuevasAlertas.push({
+                        tipo: 'warning',
+                        icono: '⚠️',
+                        titulo: 'Membresías por vencer',
+                        descripcion: `${membresiasVencer.length} clientes tienen su membresía por vencer pronto`,
+                        accion: 'Ver detalles'
+                    })
+                }
+                if (usuariosInactivos?.length > 0) {
+                    nuevasAlertas.push({
+                        tipo: 'info',
+                        icono: '😴',
+                        titulo: 'Usuarios inactivos',
+                        descripcion: `${usuariosInactivos.length} usuarios no han visitado en los últimos 30 días`,
+                        accion: 'Ver lista'
+                    })
+                }
+                setAlertas(nuevasAlertas)
+                
             } catch (error) {
                 console.error('❌ Error cargando dashboard:', error)
-                
-                // Detectar si es error de CORS
-                const esCORS = error.message.includes('conexión') || error.message.includes('CORS')
-                
                 toast({
-                    title: esCORS ? '🚫 Error de Conexión' : 'Error cargando datos',
-                    description: esCORS 
-                        ? 'No se puede conectar con el backend. Verifica que esté corriendo en http://localhost:3001 y tenga CORS habilitado.'
-                        : error.message || 'Verifica que el backend esté funcionando',
+                    title: 'Error cargando datos',
+                    description: error.message || 'Verifica que el backend esté funcionando',
                     status: 'error',
                     duration: 6000,
                     isClosable: true,
                 })
                 
-                // Mostrar instrucciones en consola
-                if (esCORS) {
-                    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: red; font-weight: bold')
-                    console.log('%c🚫 ERROR DE CORS DETECTADO', 'color: red; font-weight: bold; font-size: 16px')
-                    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: red; font-weight: bold')
-                    console.log('%c📋 SOLUCIONES:', 'color: orange; font-weight: bold; font-size: 14px')
-                    console.log('%c1️⃣ Verifica que el backend esté corriendo:', 'color: yellow')
-                    console.log('   node index.js (en la carpeta del backend)')
-                    console.log('%c2️⃣ Verifica que el backend tenga CORS habilitado:', 'color: yellow')
-                    console.log('   app.use(cors()) en el archivo index.js del backend')
-                    console.log('%c3️⃣ URL del backend debe ser:', 'color: yellow')
-                    console.log('   http://localhost:3001')
-                    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: red; font-weight: bold')
-                }
-                
-                // Datos de ejemplo en caso de error
                 setDashboardData({
-                    clientes: { total: 0, activos: 0, inactivos: 0, asistenciaHoy: 0, cambioAsistencia: 0, conMembresia: 0, nuevosEsteMes: 0, tasaRenovacion: 0 },
+                    clientes: { total: 0, activos: 0, inactivos: 0, asistenciaHoy: 0, nuevosEsteMes: 0 },
                     ingresos: { totalMes: 0, cambio: 0, promedioPorCliente: 0 },
-                    rutinas: { activas: 0, total: 0, nuevasEstaSemana: 0 },
+                    rutinas: { activas: 0, total: 0 },
                     actividadReciente: []
                 })
             } finally {
@@ -199,8 +206,7 @@ function HomeTab() {
         }
 
         cargarDashboard()
-        // Recargar cada 30 segundos
-        const interval = setInterval(cargarDashboard, 30000)
+        const interval = setInterval(cargarDashboard, 60000)
         return () => clearInterval(interval)
     }, [toast])
     
@@ -289,6 +295,36 @@ function HomeTab() {
                     </CardBody>
                 </Card>
             </SimpleGrid>
+
+            {/* Alertas Importantes */}
+            {alertas.length > 0 && (
+                <VStack spacing={3} align="stretch">
+                    {alertas.map((alerta, index) => (
+                        <Card 
+                            key={index}
+                            bg={alerta.tipo === 'warning' ? 'orange.50' : alerta.tipo === 'error' ? 'red.50' : 'blue.50'}
+                            borderLeft="4px"
+                            borderLeftColor={alerta.tipo === 'warning' ? 'orange.400' : alerta.tipo === 'error' ? 'red.400' : 'blue.400'}
+                            boxShadow="sm"
+                        >
+                            <CardBody>
+                                <HStack justify="space-between">
+                                    <HStack spacing={3}>
+                                        <Text fontSize="2xl">{alerta.icono}</Text>
+                                        <Box>
+                                            <Text fontWeight="bold" color="gray.800">{alerta.titulo}</Text>
+                                            <Text fontSize="sm" color="gray.600">{alerta.descripcion}</Text>
+                                        </Box>
+                                    </HStack>
+                                    <Button size="sm" colorScheme={alerta.tipo === 'warning' ? 'orange' : 'blue'} variant="ghost">
+                                        {alerta.accion}
+                                    </Button>
+                                </HStack>
+                            </CardBody>
+                        </Card>
+                    ))}
+                </VStack>
+            )}
 
             {/* Progreso Mensual */}
             <Card boxShadow="md">
@@ -420,6 +456,77 @@ function HomeTab() {
                                 </Text>
                             </HStack>
                         </VStack>
+                    </CardBody>
+                </Card>
+            </SimpleGrid>
+
+            {/* Gráficos de Tendencias */}
+            <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+                {/* Gráfico de Ingresos Mensuales */}
+                <Card boxShadow="md">
+                    <CardHeader borderBottom="1px" borderColor="gray.200">
+                        <Heading size="md" color="gray.700">💰 Ingresos Mensuales (Últimos 6 meses)</Heading>
+                    </CardHeader>
+                    <CardBody>
+                        {ingresosMensuales && ingresosMensuales.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={250}>
+                                <AreaChart data={ingresosMensuales.slice(-6)}>
+                                    <defs>
+                                        <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#48BB78" stopOpacity={0.8}/>
+                                            <stop offset="95%" stopColor="#48BB78" stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                                    <XAxis dataKey="mes" stroke="#718096" fontSize={12} />
+                                    <YAxis stroke="#718096" fontSize={12} />
+                                    <RechartsTooltip 
+                                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px' }}
+                                        formatter={(value) => [`$${parseInt(value).toLocaleString('es-CO')}`, 'Ingresos']}
+                                    />
+                                    <Area type="monotone" dataKey="total_ingresos" stroke="#48BB78" fillOpacity={1} fill="url(#colorIngresos)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <Box textAlign="center" py={10}>
+                                <Text color="gray.500">No hay datos de ingresos disponibles</Text>
+                            </Box>
+                        )}
+                    </CardBody>
+                </Card>
+
+                {/* Gráfico de Distribución de Clientes */}
+                <Card boxShadow="md">
+                    <CardHeader borderBottom="1px" borderColor="gray.200">
+                        <Heading size="md" color="gray.700">👥 Estado de Clientes</Heading>
+                    </CardHeader>
+                    <CardBody>
+                        <ResponsiveContainer width="100%" height={250}>
+                            <PieChart>
+                                <Pie
+                                    data={[
+                                        { name: 'Activos', value: clientes?.activos || 0, color: '#48BB78' },
+                                        { name: 'Inactivos', value: clientes?.inactivos || 0, color: '#F56565' }
+                                    ]}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                    outerRadius={80}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                >
+                                    {[
+                                        { name: 'Activos', value: clientes?.activos || 0, color: '#48BB78' },
+                                        { name: 'Inactivos', value: clientes?.inactivos || 0, color: '#F56565' }
+                                    ].map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                    ))}
+                                </Pie>
+                                <RechartsTooltip />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
                     </CardBody>
                 </Card>
             </SimpleGrid>
