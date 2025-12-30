@@ -206,8 +206,22 @@ function HomeTab() {
         }
 
         cargarDashboard()
+        
+        // Escuchar eventos de cambios en clientes/pagos
+        const handleClienteCreado = () => {
+            console.log('🔔 Dashboard: Recargando por nuevo cliente...')
+            cargarDashboard()
+        }
+        
+        window.addEventListener('clienteCreado', handleClienteCreado)
+        
+        // Recargar cada 60 segundos
         const interval = setInterval(cargarDashboard, 60000)
-        return () => clearInterval(interval)
+        
+        return () => {
+            window.removeEventListener('clienteCreado', handleClienteCreado)
+            clearInterval(interval)
+        }
     }, [toast])
     
     // Función para calcular tiempo relativo

@@ -63,6 +63,22 @@ export default function PagosTab() {
 
     useEffect(() => {
         cargarDatos()
+        
+        // Escuchar evento de cliente creado con pago
+        const handleClienteCreado = (event) => {
+            console.log('🔔 EVENTO: Cliente creado con pago, recargando datos de pagos...')
+            cargarDatos()
+        }
+        
+        window.addEventListener('clienteCreado', handleClienteCreado)
+        
+        // Recargar datos cada 10 segundos
+        const interval = setInterval(cargarDatos, 10000)
+        
+        return () => {
+            window.removeEventListener('clienteCreado', handleClienteCreado)
+            clearInterval(interval)
+        }
     }, [])
 
     async function cargarDatos() {

@@ -55,7 +55,7 @@ import {
     NumberIncrementStepper,
     NumberDecrementStepper,
 } from '@chakra-ui/react'
-import { FiMoreVertical, FiSearch, FiUser, FiUserPlus, FiX, FiRefreshCw, FiCheckCircle, FiAlertCircle, FiClock } from 'react-icons/fi'
+import { FiMoreVertical, FiSearch, FiUser, FiUserPlus, FiX, FiRefreshCw, FiCheckCircle, FiAlertCircle, FiClock, FiDollarSign } from 'react-icons/fi'
 
 // Función helper para formatear fechas
 const formatearFecha = (fecha) => {
@@ -148,6 +148,14 @@ export default function ClientesTab() {
     const [filtroMembresia, setFiltroMembresia] = useState('todos')
     const toast = useToast()
     const [isOpen, setIsOpen] = useState(false)
+    const [isPagoOpen, setIsPagoOpen] = useState(false)
+    const [selectedClienteForPago, setSelectedClienteForPago] = useState(null)
+    const [nuevoPago, setNuevoPago] = useState({
+        tipo_pago: 'membresia',
+        monto: '',
+        metodo_pago: 'efectivo',
+        concepto: ''
+    })
     const [newUser, setNewUser] = useState({ 
         nombre: '', 
         apellido: '',
@@ -283,7 +291,7 @@ export default function ClientesTab() {
                     monto: parseFloat(editData.precio_membresia),
                     metodo_pago: 'efectivo',
                     estado: 'completado',
-                    descripcion: `Renovación membresía ${editData.membresia}`,
+                    concepto: `Renovación membresía ${editData.membresia}`,
                     fecha_pago: new Date().toISOString().split('T')[0]
                 }
                 
@@ -324,6 +332,83 @@ export default function ClientesTab() {
                 description: err.message,
                 status: 'error', 
                 duration: 3000 
+            })
+        }
+    }
+
+    // Funciones para modal de pago
+    const openPagoModal = (cliente) => {
+        setSelectedClienteForPago(cliente)
+        setNuevoPago({
+            tipo_pago: 'membresia',
+            monto: cliente.precio_membresia || '',
+            metodo_pago: 'efectivo',
+            concepto: `Pago de ${cliente.membresia || 'membresía'} - ${cliente.nombre} ${cliente.apellido}`
+        })
+        setIsPagoOpen(true)
+    }
+
+    const closePagoModal = () => {
+        setIsPagoOpen(false)
+        setSelectedClienteForPago(null)
+        setNuevoPago({
+            tipo_pago: 'membresia',
+            monto: '',
+            metodo_pago: 'efectivo',
+            concepto: ''
+        })
+    }
+
+    const handleRegistrarPago = async () => {
+        if (!selectedClienteForPago) return
+        
+        if (!nuevoPago.monto || parseFloat(nuevoPago.monto) <= 0) {
+            toast({
+                title: 'El monto es requerido',
+                status: 'warning',
+                duration: 2000
+            })
+            return
+        }
+
+        try {
+            console.log('💳 REGISTRANDO PAGO PARA CLIENTE:', selectedClienteForPago.id)
+            
+            const pagoData = {
+                usuario_id: selectedClienteForPago.id,
+                tipo_pago: nuevoPago.tipo_pago,
+                monto: parseFloat(nuevoPago.monto),
+                metodo_pago: nuevoPago.metodo_pago,
+                estado: 'completado',
+                concepto: nuevoPago.concepto || `Pago de ${nuevoPago.tipo_pago}`,
+                fecha_pago: new Date().toISOString().split('T')[0]
+            }
+
+            const pagoCreado = await pagosAPI.createPago(pagoData)
+            console.log('✅ PAGO REGISTRADO:', pagoCreado)
+
+            toast({
+                title: '✅ Pago registrado exitosamente',
+                description: `${nuevoPago.tipo_pago === 'producto' ? 'Producto' : 'Membresía'} - $${parseFloat(nuevoPago.monto).toLocaleString('es-CO')}`,
+                status: 'success',
+                duration: 4000,
+                isClosable: true
+            })
+
+            closePagoModal()
+            await refrescarDatos()
+            
+            // Disparar evento para actualizar otras pestañas
+            window.dispatchEvent(new CustomEvent('clienteCreado'))
+
+        } catch (error) {
+            console.error('❌ ERROR AL REGISTRAR PAGO:', error)
+            toast({
+                title: 'Error al registrar pago',
+                description: error.message || 'Intenta nuevamente',
+                status: 'error',
+                duration: 4000,
+                isClosable: true
             })
         }
     }
@@ -429,6 +514,7 @@ export default function ClientesTab() {
         if (accion === 'rutina') return openAssignModal(cliente)
         if (accion === 'ver') return openDetailsModal(cliente)
         if (accion === 'editar') return openEditModal(cliente)
+        if (accion === 'pago') return openPagoModal(cliente)
         
         if (accion === 'visita') {
             usuariosAPI.registrarVisita(cliente.id)
@@ -512,6 +598,8 @@ export default function ClientesTab() {
         }
         
         try {
+            console.log('🔄 INICIANDO CREACIÓN DE CLIENTE...')
+            
             // El backend ahora calcula automáticamente la fecha_vencimiento según el tipo de membresía
             const payload = { 
                 nombre: newUser.nombre.trim(),
@@ -527,55 +615,78 @@ export default function ClientesTab() {
             
             console.log('📦 Payload enviado al backend:', payload)
             console.log('✨ El backend calculará automáticamente fecha_vencimiento según membresía:', newUser.membresia)
+            
             const usuarioCreado = await authAPI.register(payload)
+            console.log('✅ CLIENTE CREADO:', usuarioCreado)
             
             // Si se debe registrar el pago
             if (newUser.registrar_pago && usuarioCreado?.usuario?.id) {
-                const fechaInicio = new Date()
+                console.log('💳 REGISTRANDO PAGO DE MEMBRESÍA...')
                 
+                const fechaInicio = new Date()
                 const pagoData = {
                     usuario_id: usuarioCreado.usuario.id,
                     tipo_pago: 'membresia',
                     monto: parseFloat(newUser.precio_membresia),
-                    metodo_pago: newUser.metodo_pago,
+                    metodo_pago: newUser.metodo_pago || 'efectivo',
                     estado: 'completado',
-                    descripcion: `Membresía ${newUser.membresia}`,
+                    concepto: `Membresía ${newUser.membresia} - ${payload.nombre} ${payload.apellido}`,
                     fecha_pago: fechaInicio.toISOString().split('T')[0]
                 }
                 
                 try {
-                    await pagosAPI.createPago(pagoData)
-                    console.log('Pago registrado exitosamente')
+                    const pagoCreado = await pagosAPI.createPago(pagoData)
+                    console.log('✅ PAGO REGISTRADO:', pagoCreado)
+                    
+                    toast({ 
+                        title: '✅ Cliente y Pago Registrados', 
+                        description: `${payload.nombre} ${payload.apellido} - Membresía ${newUser.membresia} ($${parseFloat(newUser.precio_membresia).toLocaleString('es-CO')})`,
+                        status: 'success', 
+                        duration: 4000,
+                        isClosable: true
+                    })
                 } catch (errPago) {
-                    console.error('Error al registrar pago:', errPago)
+                    console.error('❌ ERROR AL REGISTRAR PAGO:', errPago)
                     toast({ 
                         title: '⚠️ Cliente creado pero sin pago', 
-                        description: 'El pago no pudo ser registrado',
+                        description: `El cliente fue creado pero el pago no se registró: ${errPago.message}`,
                         status: 'warning', 
-                        duration: 3000 
+                        duration: 4000,
+                        isClosable: true
                     })
                 }
+            } else {
+                toast({ 
+                    title: '✅ Cliente creado', 
+                    description: `${payload.nombre} ${payload.apellido} registrado exitosamente`,
+                    status: 'success', 
+                    duration: 3000 
+                })
             }
-            
-            toast({ 
-                title: '✅ Cliente creado', 
-                description: `${payload.nombre} ${payload.apellido}${newUser.registrar_pago ? ' - Pago registrado' : ''}`,
-                status: 'success', 
-                duration: 3000 
-            })
             
             closeModal()
             
             // Recargar usuarios desde el backend
+            console.log('🔄 RECARGANDO DATOS DEL SISTEMA...')
             await refrescarDatos()
+            console.log('✅ DATOS ACTUALIZADOS')
+            
+            // Disparar evento personalizado para actualizar otras pestañas
+            window.dispatchEvent(new CustomEvent('clienteCreado', { 
+                detail: { 
+                    cliente: usuarioCreado.usuario,
+                    pagado: newUser.registrar_pago
+                } 
+            }))
             
         } catch (err) {
-            console.error('Error completo:', err)
+            console.error('❌ ERROR COMPLETO:', err)
             toast({ 
                 title: 'Error al crear cliente', 
                 description: err.message || 'Verifica los datos e intenta nuevamente',
                 status: 'error', 
-                duration: 3000 
+                duration: 4000,
+                isClosable: true
             })
         }
     }
@@ -952,6 +1063,13 @@ export default function ClientesTab() {
                                             <MenuItem onClick={() => handleAccion('ver', cliente)}>Ver detalles</MenuItem>
                                             <MenuItem onClick={() => handleAccion('editar', cliente)}>Editar</MenuItem>
                                             <MenuItem onClick={() => handleAccion('rutina', cliente)}>Asignar rutina</MenuItem>
+                                            <MenuItem 
+                                                icon={<FiDollarSign />}
+                                                onClick={() => handleAccion('pago', cliente)}
+                                                color="green.600"
+                                            >
+                                                Registrar Pago
+                                            </MenuItem>
                                             {cliente.estado === 'activo' ? (
                                                 <MenuItem onClick={() => handleAccion('desactivar', cliente)}>Desactivar</MenuItem>
                                             ) : (
@@ -1359,6 +1477,101 @@ export default function ClientesTab() {
                         leftIcon={editData.renovar_membresia ? <FiRefreshCw /> : undefined}
                     >
                         {editData.renovar_membresia ? 'Guardar y Renovar' : 'Guardar Cambios'}
+                    </Button>
+                </ModalFooter>
+            </ModalContent>
+        </Modal>
+
+        {/* Modal Registrar Pago */}
+        <Modal isOpen={isPagoOpen} onClose={closePagoModal} size="lg">
+            <ModalOverlay />
+            <ModalContent>
+                <ModalHeader>💳 Registrar Pago</ModalHeader>
+                <ModalBody>
+                    {selectedClienteForPago && (
+                        <VStack spacing={4} align="stretch">
+                            <Box p={4} bg="blue.50" borderRadius="md" borderWidth="1px" borderColor="blue.200">
+                                <HStack spacing={3}>
+                                    <FiUser size={24} color="#3182CE" />
+                                    <Box>
+                                        <Text fontWeight="bold" color="blue.800">
+                                            {selectedClienteForPago.nombre} {selectedClienteForPago.apellido}
+                                        </Text>
+                                        <Text fontSize="sm" color="gray.600">
+                                            {selectedClienteForPago.email} • {selectedClienteForPago.telefono}
+                                        </Text>
+                                        <Badge colorScheme="blue" mt={1}>
+                                            Membresía: {selectedClienteForPago.membresia || 'Sin membresía'}
+                                        </Badge>
+                                    </Box>
+                                </HStack>
+                            </Box>
+
+                            <SimpleGrid columns={2} spacing={4}>
+                                <FormControl isRequired>
+                                    <FormLabel fontSize="sm">Tipo de Pago</FormLabel>
+                                    <Select
+                                        value={nuevoPago.tipo_pago}
+                                        onChange={(e) => setNuevoPago(prev => ({ ...prev, tipo_pago: e.target.value }))}
+                                    >
+                                        <option value="membresia">Membresía</option>
+                                        <option value="producto">Producto</option>
+                                        <option value="sesion">Sesión de Entrenamiento</option>
+                                        <option value="otro">Otro</option>
+                                    </Select>
+                                </FormControl>
+
+                                <FormControl isRequired>
+                                    <FormLabel fontSize="sm">Monto ($)</FormLabel>
+                                    <NumberInput
+                                        value={nuevoPago.monto}
+                                        onChange={(value) => setNuevoPago(prev => ({ ...prev, monto: value }))}
+                                        min={0}
+                                    >
+                                        <NumberInputField placeholder="0" />
+                                    </NumberInput>
+                                </FormControl>
+                            </SimpleGrid>
+
+                            <FormControl>
+                                <FormLabel fontSize="sm">Método de Pago</FormLabel>
+                                <Select
+                                    value={nuevoPago.metodo_pago}
+                                    onChange={(e) => setNuevoPago(prev => ({ ...prev, metodo_pago: e.target.value }))}
+                                >
+                                    <option value="efectivo">Efectivo</option>
+                                    <option value="tarjeta">Tarjeta</option>
+                                    <option value="transferencia">Transferencia</option>
+                                    <option value="otro">Otro</option>
+                                </Select>
+                            </FormControl>
+
+                            <FormControl isRequired>
+                                <FormLabel fontSize="sm">Concepto</FormLabel>
+                                <Input
+                                    value={nuevoPago.concepto}
+                                    onChange={(e) => setNuevoPago(prev => ({ ...prev, concepto: e.target.value }))}
+                                    placeholder="Ej: Pago de membresía mensual"
+                                />
+                            </FormControl>
+
+                            <Box p={3} bg="green.50" borderRadius="md" borderWidth="1px" borderColor="green.200">
+                                <HStack justify="space-between">
+                                    <Text fontWeight="bold" color="green.800">Total a Registrar:</Text>
+                                    <Text fontSize="2xl" fontWeight="bold" color="green.600">
+                                        ${parseFloat(nuevoPago.monto || 0).toLocaleString('es-CO')}
+                                    </Text>
+                                </HStack>
+                            </Box>
+                        </VStack>
+                    )}
+                </ModalBody>
+                <ModalFooter>
+                    <Button variant="ghost" mr={3} onClick={closePagoModal}>
+                        Cancelar
+                    </Button>
+                    <Button colorScheme="green" onClick={handleRegistrarPago} leftIcon={<FiDollarSign />}>
+                        Registrar Pago
                     </Button>
                 </ModalFooter>
             </ModalContent>
