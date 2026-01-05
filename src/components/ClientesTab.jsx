@@ -29,6 +29,7 @@ import {
     ModalHeader,
     ModalBody,
     ModalFooter,
+    ModalCloseButton,
     FormControl,
     FormLabel,
     InputGroup,
@@ -383,15 +384,22 @@ export default function ClientesTab() {
                 concepto: nuevoPago.concepto || `Pago de ${nuevoPago.tipo_pago}`,
                 fecha_pago: new Date().toISOString().split('T')[0]
             }
-
+            
+            console.log('📤 DATOS QUE SE ENVÍAN AL BACKEND:', JSON.stringify(pagoData, null, 2))
             const pagoCreado = await pagosAPI.createPago(pagoData)
-            console.log('✅ PAGO REGISTRADO:', pagoCreado)
+            console.log('✅ RESPUESTA COMPLETA DEL BACKEND:', JSON.stringify(pagoCreado, null, 2))
+            console.log('🔍 ESTADO RECIBIDO:', pagoCreado?.estado || pagoCreado?.pago?.estado)
+            
+            if (pagoCreado?.estado === 'pendiente' || pagoCreado?.pago?.estado === 'pendiente') {
+                console.warn('⚠️ EL BACKEND DEVUELVE ESTADO PENDIENTE - Revisar código del backend')
+            }
 
+            const estadoRecibido = pagoCreado?.estado || pagoCreado?.pago?.estado || 'desconocido'
             toast({
-                title: '✅ Pago registrado exitosamente',
-                description: `${nuevoPago.tipo_pago === 'producto' ? 'Producto' : 'Membresía'} - $${parseFloat(nuevoPago.monto).toLocaleString('es-CO')}`,
-                status: 'success',
-                duration: 4000,
+                title: '✅ Pago registrado',
+                description: `${nuevoPago.tipo_pago === 'producto' ? 'Producto' : 'Membresía'} - $${parseFloat(nuevoPago.monto).toLocaleString('es-CO')} | Estado: ${estadoRecibido.toUpperCase()}`,
+                status: estadoRecibido === 'completado' ? 'success' : 'warning',
+                duration: 5000,
                 isClosable: true
             })
 
@@ -467,6 +475,7 @@ export default function ClientesTab() {
                     membresia: (user.membresia || 'DIARIA').toUpperCase(),
                     estado: user.estado || 'activo',
                     fecha_vencimiento: user.fecha_vencimiento || null,
+                    fecha_inicio_membresia: user.fecha_inicio_membresia || null,
                     precio_membresia: user.precio_membresia || 0,
                     ultima_visita: user.ultima_visita || null,
                     total_visitas: user.total_visitas || 0,
@@ -734,17 +743,24 @@ export default function ClientesTab() {
             
             // Cargar todos los pagos de membresía
             const pagos = await pagosAPI.getPagos({ tipo_pago: 'membresia' })
+            console.log('💳 PAGOS CARGADOS:', pagos.length)
+            console.log('📊 DETALLE PAGOS:', pagos.map(p => ({ id: p.id, usuario_id: p.usuario_id, estado: p.estado, monto: p.monto })))
             
-            // Crear mapa de último pago por usuario
+            // Crear mapa de último pago por usuario (excluir solo cancelados/fallidos)
             const pagosporUsuario = {}
             if (Array.isArray(pagos)) {
                 pagos.forEach(pago => {
                     const userId = pago.usuario_id
-                    if (!pagosporUsuario[userId] || new Date(pago.fecha_pago) > new Date(pagosporUsuario[userId].fecha_pago)) {
-                        pagosporUsuario[userId] = pago
+                    const estado = (pago.estado || '').toLowerCase()
+                    // Incluir todos los estados excepto cancelado y fallido
+                    if (estado !== 'cancelado' && estado !== 'fallido') {
+                        if (!pagosporUsuario[userId] || new Date(pago.fecha_pago) > new Date(pagosporUsuario[userId].fecha_pago)) {
+                            pagosporUsuario[userId] = pago
+                        }
                     }
                 })
             }
+            console.log('🗺️ MAPA DE PAGOS:', Object.keys(pagosporUsuario).length, 'usuarios con pagos válidos')
             
             setPagosMap(pagosporUsuario)
             
@@ -979,55 +995,50 @@ export default function ClientesTab() {
                                                             </Badge>
                                                         </HStack>
                                                         
-                                                        {pagosMap[cliente.id] ? (
+                                                        <Divider />
+                                                        
+                                                        <HStack justify="space-between">
+                                                            <Text fontSize="sm" color="gray.600">Precio:</Text>
+                                                            <Text fontSize="sm" fontWeight="bold" color="green.600">
+                                                                ${Number(pagosMap[cliente.id]?.monto || cliente.precio_membresia || 0).toLocaleString('es-CO')}
+                                                            </Text>
+                                                        </HStack>
+                                                        
+                                                        <HStack justify="space-between">
+                                                            <Text fontSize="sm" color="gray.600">Fecha de Pago:</Text>
+                                                            <Text fontSize="sm" fontWeight="medium" color={pagosMap[cliente.id]?.fecha_pago ? "gray.700" : "gray.500"}>
+                                                                {pagosMap[cliente.id]?.fecha_pago 
+                                                                    ? formatearFecha(pagosMap[cliente.id].fecha_pago) 
+                                                                    : formatearFecha(cliente.fecha_inicio_membresia) || formatearFecha(cliente.created_at) || 'Sin registro'}
+                                                            </Text>
+                                                        </HStack>
+                                                        
+                                                        <HStack justify="space-between">
+                                                            <Text fontSize="sm" color="gray.600">Fecha de Vencimiento:</Text>
+                                                            <Text fontSize="sm" fontWeight="medium">
+                                                                {formatearFecha(cliente.fecha_vencimiento)}
+                                                            </Text>
+                                                        </HStack>
+                                                        
+                                                        {pagosMap[cliente.id] && pagosMap[cliente.id].monto && (
                                                             <>
                                                                 <Divider />
-                                                                <HStack justify="space-between">
-                                                                    <Text fontSize="sm" color="gray.600">Fecha de Pago:</Text>
-                                                                    <Text fontSize="sm" fontWeight="medium">
-                                                                        {formatearFecha(pagosMap[cliente.id].fecha_pago)}
-                                                                    </Text>
-                                                                </HStack>
-                                                                <HStack justify="space-between">
-                                                                    <Text fontSize="sm" color="gray.600">Monto Pagado:</Text>
-                                                                    <Text fontSize="sm" fontWeight="bold" color="green.600">
-                                                                        ${Number(pagosMap[cliente.id].monto).toLocaleString('es-CO')}
-                                                                    </Text>
-                                                                </HStack>
                                                                 <HStack justify="space-between">
                                                                     <Text fontSize="sm" color="gray.600">Estado Pago:</Text>
-                                                                    <Badge colorScheme={pagosMap[cliente.id].estado === 'completado' ? 'green' : 'orange'}>
-                                                                        {pagosMap[cliente.id].estado}
+                                                                    <Badge colorScheme={
+                                                                        (pagosMap[cliente.id]?.estado === 'completado' || pagosMap[cliente.id]?.estado === 'pagado') ? 'green' : 
+                                                                        pagosMap[cliente.id]?.estado === 'pendiente' ? 'yellow' :
+                                                                        (pagosMap[cliente.id]?.estado === 'cancelado' || pagosMap[cliente.id]?.estado === 'fallido') ? 'red' : 
+                                                                        'orange'
+                                                                    }>
+                                                                        {(pagosMap[cliente.id]?.estado || 'PENDIENTE').toUpperCase()}
                                                                     </Badge>
                                                                 </HStack>
-                                                                {pagosMap[cliente.id].descripcion && (
-                                                                    <>
-                                                                        <Divider />
-                                                                        <Text fontSize="xs" color="gray.500">
-                                                                            {pagosMap[cliente.id].descripcion}
-                                                                        </Text>
-                                                                    </>
+                                                                {pagosMap[cliente.id]?.descripcion && (
+                                                                    <Text fontSize="xs" color="gray.500">
+                                                                        {pagosMap[cliente.id].descripcion}
+                                                                    </Text>
                                                                 )}
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Divider />
-                                                                <HStack justify="space-between">
-                                                                    <Text fontSize="sm" color="gray.600">Precio:</Text>
-                                                                    <Text fontSize="sm" fontWeight="bold" color="green.600">
-                                                                        ${Number(cliente.precio_membresia || 0).toLocaleString('es-CO')}
-                                                                    </Text>
-                                                                </HStack>
-                                                                <HStack justify="space-between">
-                                                                    <Text fontSize="sm" color="gray.600">Vencimiento:</Text>
-                                                                    <Text fontSize="sm" fontWeight="medium">
-                                                                        {formatearFecha(cliente.fecha_vencimiento)}
-                                                                    </Text>
-                                                                </HStack>
-                                                                <Divider />
-                                                                <Text fontSize="xs" color="orange.500" fontStyle="italic">
-                                                                    Sin registro de pago
-                                                                </Text>
                                                             </>
                                                         )}
                                                     </VStack>
@@ -1092,6 +1103,7 @@ export default function ClientesTab() {
             <ModalOverlay />
             <ModalContent>
                 <ModalHeader>Nuevo Cliente</ModalHeader>
+                <ModalCloseButton />
                 <ModalBody>
                     <SimpleGrid columns={2} spacing={3}>
                         <FormControl isRequired>
@@ -1256,6 +1268,7 @@ export default function ClientesTab() {
             <ModalOverlay />
             <ModalContent>
                 <ModalHeader>Asignar rutina a {selectedClienteForAssign?.nombre}</ModalHeader>
+                <ModalCloseButton />
                 <ModalBody>
                     <FormControl mb={3}>
                         <FormLabel>Rutina</FormLabel>
@@ -1278,6 +1291,7 @@ export default function ClientesTab() {
             <ModalOverlay />
             <ModalContent>
                 <ModalHeader>Rutinas asignadas</ModalHeader>
+                <ModalCloseButton />
                 <ModalBody>
                     {assignedRutinas.length === 0 ? (
                         <Text>No hay rutinas asignadas.</Text>
@@ -1316,6 +1330,7 @@ export default function ClientesTab() {
                         <Text>Editar Cliente: {selectedClienteForEdit?.nombre} {selectedClienteForEdit?.apellido}</Text>
                     </HStack>
                 </ModalHeader>
+                <ModalCloseButton />
                 <ModalBody>
                     <VStack spacing={4} align="stretch">
                         {/* Información Personal */}
@@ -1487,6 +1502,7 @@ export default function ClientesTab() {
             <ModalOverlay />
             <ModalContent>
                 <ModalHeader>💳 Registrar Pago</ModalHeader>
+                <ModalCloseButton />
                 <ModalBody>
                     {selectedClienteForPago && (
                         <VStack spacing={4} align="stretch">

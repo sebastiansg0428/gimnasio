@@ -22,6 +22,7 @@ import {
     ModalHeader,
     ModalBody,
     ModalFooter,
+    ModalCloseButton,
     FormControl,
     FormLabel,
     NumberInput,
@@ -33,32 +34,54 @@ import {
     StatLabel,
     StatNumber,
     StatHelpText,
+    StatArrow,
     Divider,
     Badge,
+    Card,
+    CardHeader,
+    CardBody,
+    Heading,
+    Tabs,
+    TabList,
+    TabPanels,
+    Tab,
+    TabPanel,
+    Spinner,
+    Alert,
+    AlertIcon,
+    AlertTitle,
+    AlertDescription,
 } from '@chakra-ui/react'
-import { FiPlus, FiSearch, FiEye, FiTrash2, FiDollarSign, FiTrendingUp, FiCreditCard, FiFileText } from 'react-icons/fi'
+import { FiPlus, FiSearch, FiEye, FiTrash2, FiDollarSign, FiTrendingUp, FiCreditCard, FiFileText, FiRefreshCw, FiCalendar, FiFilter } from 'react-icons/fi'
 import { useState, useEffect, useMemo } from 'react'
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts'
+import { pagosAPI } from '../services/api'
 
-const API_BASE = 'http://localhost:3001'
+const COLORS = ['#48BB78', '#4299E1', '#9F7AEA', '#ED8936', '#F56565']
 
 export default function PagosTab() {
     const [pagos, setPagos] = useState([])
-    const [facturas, setFacturas] = useState([])
+    const [estadisticas, setEstadisticas] = useState(null)
+    const [estadisticasMembresias, setEstadisticasMembresias] = useState(null)
     const [usuarios, setUsuarios] = useState([])
     const [loading, setLoading] = useState(true)
     const [busqueda, setBusqueda] = useState('')
     const [filtroEstado, setFiltroEstado] = useState('todos')
     const [filtroTipo, setFiltroTipo] = useState('todos')
+    const [filtroMetodo, setFiltroMetodo] = useState('todos')
+    const [fechaDesde, setFechaDesde] = useState('')
+    const [fechaHasta, setFechaHasta] = useState('')
     const [nuevoPago, setNuevoPago] = useState({
         usuario_id: '',
         monto: '',
         tipo_pago: 'membresia',
         metodo_pago: 'efectivo',
         estado: 'completado',
-        descripcion: ''
+        concepto: ''
     })
     const { isOpen, onOpen, onClose } = useDisclosure()
+    const { isOpen: isDetallesOpen, onOpen: onDetallesOpen, onClose: onDetallesClose } = useDisclosure()
+    const [pagoSeleccionado, setPagoSeleccionado] = useState(null)
     const toast = useToast()
 
     useEffect(() => {
@@ -72,8 +95,8 @@ export default function PagosTab() {
         
         window.addEventListener('clienteCreado', handleClienteCreado)
         
-        // Recargar datos cada 10 segundos
-        const interval = setInterval(cargarDatos, 10000)
+        // Recargar datos cada 30 segundos
+        const interval = setInterval(cargarDatos, 30000)
         
         return () => {
             window.removeEventListener('clienteCreado', handleClienteCreado)
@@ -84,19 +107,50 @@ export default function PagosTab() {
     async function cargarDatos() {
         setLoading(true)
         try {
-            const [pagosRes, facturasRes, usuariosRes] = await Promise.all([
-                fetch(`${API_BASE}/pagos`),
-                fetch(`${API_BASE}/facturas`),
-                fetch(`${API_BASE}/usuarios`)
-            ])
+            console.log('📊 CARGANDO DATOS DE PAGOS...')
+            
+            // Cargar pagos
+            const pagosData = await pagosAPI.getPagos().catch(err => {
+                console.error('❌ Error cargando pagos:', err)
+                return []
+            })
+            
+            // Cargar estadísticas
+            const estadisticasData = await pagosAPI.getEstadisticas().catch(err => {
+                console.error('❌ Error cargando estadísticas:', err)
+                return null
+            })
+            
+            // Cargar estadísticas de membresías
+            const estadisticasMembresiasData = await fetch('http://localhost:3001/pagos/estadisticas/membresias')
+                .then(r => r.ok ? r.json() : null)
+                .catch(err => {
+                    console.error('❌ Error cargando estadísticas de membresías:', err)
+                    return null
+                })
+            
+            // Cargar usuarios
+            const usuariosData = await fetch('http://localhost:3001/usuarios')
+                .then(r => r.ok ? r.json() : [])
+                .catch(err => {
+                    console.error('❌ Error cargando usuarios:', err)
+                    return []
+                })
 
-            if (pagosRes.ok) setPagos(await pagosRes.json())
-            if (facturasRes.ok) setFacturas(await facturasRes.json())
-            if (usuariosRes.ok) setUsuarios(await usuariosRes.json())
+            console.log('✅ PAGOS CARGADOS:', pagosData.length)
+            console.log('✅ USUARIOS CARGADOS:', usuariosData.length)
+            console.log('✅ ESTADÍSTICAS:', estadisticasData)
+            
+            setPagos(pagosData)
+            setEstadisticas(estadisticasData)
+            setEstadisticasMembresias(estadisticasMembresiasData)
+            setUsuarios(usuariosData)
+            
         } catch (error) {
-            console.error('Error cargando datos:', error)
+            console.error('❌ ERROR CARGANDO DATOS:', error)
             toast({
                 title: 'Error al cargar datos',
+                description: error.message,
                 status: 'error',
                 duration: 3000
             })
@@ -115,126 +169,144 @@ export default function PagosTab() {
             return
         }
 
-        setTimeout(async () => {
-            try {
-                const res = await fetch(`${API_BASE}/pagos`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(nuevoPago)
-                })
-
-                if (res.ok) {
-                    toast({
-                        title: 'Pago registrado exitosamente',
-                        status: 'success',
-                        duration: 2000
-                    })
-                    await cargarDatos()
-                    onClose()
-                    setNuevoPago({
-                        usuario_id: '',
-                        monto: '',
-                        tipo_pago: 'membresia',
-                        metodo_pago: 'efectivo',
-                        estado: 'completado',
-                        descripcion: ''
-                    })
-                } else {
-                    throw new Error('Error al crear pago')
-                }
-            } catch (error) {
-                toast({
-                    title: 'Error al registrar pago',
-                    description: error.message,
-                    status: 'error',
-                    duration: 3000
-                })
+        try {
+            console.log('💳 CREANDO PAGO:', nuevoPago)
+            
+            const pagoData = {
+                ...nuevoPago,
+                monto: parseFloat(nuevoPago.monto),
+                concepto: nuevoPago.concepto || `Pago de ${nuevoPago.tipo_pago}`,
+                fecha_pago: new Date().toISOString().split('T')[0]
             }
-        }, 0)
+            
+            await pagosAPI.createPago(pagoData)
+            
+            toast({
+                title: '✅ Pago registrado exitosamente',
+                status: 'success',
+                duration: 3000,
+                isClosable: true
+            })
+            
+            await cargarDatos()
+            onClose()
+            
+            setNuevoPago({
+                usuario_id: '',
+                monto: '',
+                tipo_pago: 'membresia',
+                metodo_pago: 'efectivo',
+                estado: 'completado',
+                concepto: ''
+            })
+            
+            // Disparar evento para actualizar dashboard
+            window.dispatchEvent(new CustomEvent('clienteCreado'))
+            
+        } catch (error) {
+            console.error('❌ ERROR AL CREAR PAGO:', error)
+            toast({
+                title: 'Error al registrar pago',
+                description: error.message,
+                status: 'error',
+                duration: 3000
+            })
+        }
+    }
+
+    async function handleRenovarMembresia(usuario) {
+        if (!usuario) return
+        
+        try {
+            console.log('🔄 RENOVANDO MEMBRESÍA PARA:', usuario.nombre)
+            
+            const response = await fetch('http://localhost:3001/pagos/renovar-membresia', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    usuario_id: usuario.id,
+                    tipo_membresia: usuario.membresia || 'DIARIA',
+                    monto: usuario.precio_membresia || 50000,
+                    metodo_pago: 'efectivo'
+                })
+            })
+
+            if (!response.ok) {
+                throw new Error('Error al renovar membresía')
+            }
+
+            const resultado = await response.json()
+            
+            toast({
+                title: '✅ Membresía renovada',
+                description: `${usuario.nombre} ${usuario.apellido} - Nueva membresía activa`,
+                status: 'success',
+                duration: 4000,
+                isClosable: true
+            })
+            
+            await cargarDatos()
+            window.dispatchEvent(new CustomEvent('clienteCreado'))
+            
+        } catch (error) {
+            console.error('❌ ERROR AL RENOVAR:', error)
+            toast({
+                title: 'Error al renovar membresía',
+                description: error.message,
+                status: 'error',
+                duration: 3000
+            })
+        }
+    }
+
+    function handleVerDetalles(pago) {
+        setPagoSeleccionado(pago)
+        onDetallesOpen()
     }
 
     async function handleEliminarPago(id) {
-        if (!window.confirm('¿Cancelar este pago?')) return
-
-        setTimeout(async () => {
-            try {
-                const res = await fetch(`${API_BASE}/pagos/${id}`, {
-                    method: 'DELETE'
-                })
-
-                if (res.ok) {
-                    toast({
-                        title: 'Pago cancelado',
-                        status: 'info',
-                        duration: 2000
-                    })
-                    await cargarDatos()
-                }
-            } catch (error) {
-                toast({
-                    title: 'Error al cancelar pago',
-                    status: 'error',
-                    duration: 3000
-                })
-            }
-        }, 0)
+        if (!window.confirm('¿Estás seguro de cancelar este pago?')) return
+        
+        try {
+            await pagosAPI.deletePago(id)
+            toast({
+                title: 'Pago cancelado',
+                status: 'info',
+                duration: 2000
+            })
+            await cargarDatos()
+            window.dispatchEvent(new CustomEvent('clienteCreado'))
+        } catch (error) {
+            console.error('Error al cancelar pago:', error)
+            toast({
+                title: 'Error al cancelar pago',
+                description: error.message,
+                status: 'error',
+                duration: 3000
+            })
+        }
     }
 
-    // Estadísticas
-    const estadisticas = useMemo(() => {
-        const totalPagos = pagos.reduce((sum, p) => sum + parseFloat(p.monto || 0), 0)
-        const totalFacturas = facturas.reduce((sum, f) => sum + parseFloat(f.total || 0), 0)
-        const pagosPendientes = pagos.filter(p => p.estado === 'pendiente').length
-        const pagosCompletados = pagos.filter(p => p.estado === 'completado').length
-
-        // Datos por método de pago
-        const metodosPago = {}
-        pagos.forEach(p => {
-            const metodo = p.metodo_pago || 'efectivo'
-            metodosPago[metodo] = (metodosPago[metodo] || 0) + parseFloat(p.monto || 0)
+    const pagosFiltrados = useMemo(() => {
+        return pagos.filter(p => {
+            const usuario = usuarios.find(u => u.id === p.usuario_id)
+            const nombreUsuario = usuario ? `${usuario.nombre || ''} ${usuario.apellido || ''}`.toLowerCase() : ''
+            const concepto = (p.concepto || p.descripcion || '').toLowerCase()
+            const busquedaLower = busqueda.toLowerCase()
+            
+            const matchBusqueda = nombreUsuario.includes(busquedaLower) || concepto.includes(busquedaLower)
+            const matchEstado = filtroEstado === 'todos' || p.estado === filtroEstado
+            const matchTipo = filtroTipo === 'todos' || p.tipo_pago === filtroTipo
+            const matchMetodo = filtroMetodo === 'todos' || p.metodo_pago === filtroMetodo
+            
+            return matchBusqueda && matchEstado && matchTipo && matchMetodo
         })
-        const datosMetodos = Object.entries(metodosPago).map(([metodo, total]) => ({
-            metodo: metodo.charAt(0).toUpperCase() + metodo.slice(1),
-            total
-        }))
-
-        // Datos por tipo de pago
-        const tiposPago = {}
-        pagos.forEach(p => {
-            const tipo = p.tipo_pago || 'otros'
-            tiposPago[tipo] = (tiposPago[tipo] || 0) + 1
-        })
-        const datosTipos = Object.entries(tiposPago).map(([tipo, cantidad]) => ({
-            name: tipo.charAt(0).toUpperCase() + tipo.slice(1),
-            value: cantidad,
-            color: tipo === 'membresia' ? '#48BB78' : tipo === 'producto' ? '#4299E1' : '#ED8936'
-        }))
-
-        return {
-            totalPagos,
-            totalFacturas,
-            pagosPendientes,
-            pagosCompletados,
-            datosMetodos,
-            datosTipos
-        }
-    }, [pagos, facturas])
-
-    const pagosFiltrados = pagos.filter(p => {
-        const usuario = usuarios.find(u => u.id === p.usuario_id)
-        const nombreUsuario = usuario ? `${usuario.nombre || ''} ${usuario.apellido || ''}` : ''
-        
-        const matchBusqueda = nombreUsuario.toLowerCase().includes(busqueda.toLowerCase()) ||
-                             (p.descripcion || '').toLowerCase().includes(busqueda.toLowerCase())
-        const matchEstado = filtroEstado === 'todos' || p.estado === filtroEstado
-        const matchTipo = filtroTipo === 'todos' || p.tipo_pago === filtroTipo
-        
-        return matchBusqueda && matchEstado && matchTipo
-    })
+    }, [pagos, usuarios, busqueda, filtroEstado, filtroTipo, filtroMetodo])
 
     const getEstadoColor = (estado) => {
         const colores = {
             completado: 'green',
+            pagado: 'green',
             pendiente: 'yellow',
             cancelado: 'red',
             fallido: 'red'
@@ -252,230 +324,471 @@ export default function PagosTab() {
         return colores[tipo] || 'gray'
     }
 
+    if (loading) {
+        return (
+            <Box textAlign="center" py={20}>
+                <Spinner size="xl" color="green.500" thickness="4px" />
+                <Text mt={4} color="gray.600">Cargando pagos...</Text>
+            </Box>
+        )
+    }
+
     return (
         <Box>
-            {/* Estadísticas */}
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4} mb={6}>
-                <Box bg="white" p={5} borderRadius="lg" boxShadow="sm" borderLeft="4px solid" borderLeftColor="green.400">
-                    <Stat>
-                        <HStack justify="space-between" mb={2}>
-                            <StatLabel color="gray.600">Total Pagos</StatLabel>
-                            <FiDollarSign size={24} color="#48BB78" />
-                        </HStack>
-                        <StatNumber fontSize="3xl" color="green.600">
-                            ${estadisticas.totalPagos.toLocaleString('es-CO')}
-                        </StatNumber>
-                        <StatHelpText>{pagos.length} transacciones</StatHelpText>
-                    </Stat>
-                </Box>
+            {/* Tarjetas de Estadísticas */}
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
+                <Card boxShadow="md" borderLeft="4px" borderLeftColor="green.400">
+                    <CardBody>
+                        <Stat>
+                            <StatLabel color="gray.600" fontSize="sm">Total Ingresos</StatLabel>
+                            <StatNumber fontSize="3xl" color="green.600">
+                                ${(estadisticas?.totalIngresos || 0).toLocaleString('es-CO')}
+                            </StatNumber>
+                            <StatHelpText>
+                                <StatArrow type="increase" />
+                                Todos los pagos completados
+                            </StatHelpText>
+                        </Stat>
+                    </CardBody>
+                </Card>
 
-                <Box bg="white" p={5} borderRadius="lg" boxShadow="sm" borderLeft="4px solid" borderLeftColor="blue.400">
-                    <Stat>
-                        <HStack justify="space-between" mb={2}>
-                            <StatLabel color="gray.600">Facturas</StatLabel>
-                            <FiFileText size={24} color="#4299E1" />
-                        </HStack>
-                        <StatNumber fontSize="3xl" color="blue.600">
-                            ${estadisticas.totalFacturas.toLocaleString('es-CO')}
-                        </StatNumber>
-                        <StatHelpText>{facturas.length} facturas</StatHelpText>
-                    </Stat>
-                </Box>
+                <Card boxShadow="md" borderLeft="4px" borderLeftColor="blue.400">
+                    <CardBody>
+                        <Stat>
+                            <StatLabel color="gray.600" fontSize="sm">Total Pagos</StatLabel>
+                            <StatNumber fontSize="3xl" color="blue.600">
+                                {estadisticas?.totalPagos || pagos.length}
+                            </StatNumber>
+                            <StatHelpText>
+                                <Badge colorScheme="green">{pagos.filter(p => p.estado === 'completado' || p.estado === 'pagado').length} completados</Badge>
+                            </StatHelpText>
+                        </Stat>
+                    </CardBody>
+                </Card>
 
-                <Box bg="white" p={5} borderRadius="lg" boxShadow="sm" borderLeft="4px solid" borderLeftColor="orange.400">
-                    <Stat>
-                        <HStack justify="space-between" mb={2}>
-                            <StatLabel color="gray.600">Pendientes</StatLabel>
-                            <FiTrendingUp size={24} color="#DD6B20" />
-                        </HStack>
-                        <StatNumber fontSize="3xl" color="orange.600">
-                            {estadisticas.pagosPendientes}
-                        </StatNumber>
-                        <StatHelpText>Por cobrar</StatHelpText>
-                    </Stat>
-                </Box>
+                <Card boxShadow="md" borderLeft="4px" borderLeftColor="purple.400">
+                    <CardBody>
+                        <Stat>
+                            <StatLabel color="gray.600" fontSize="sm">Membresías Este Mes</StatLabel>
+                            <StatNumber fontSize="3xl" color="purple.600">
+                                {estadisticasMembresias?.totalMembresias || pagos.filter(p => p.tipo_pago === 'membresia').length}
+                            </StatNumber>
+                            <StatHelpText>
+                                ${(estadisticasMembresias?.ingresoTotal || 0).toLocaleString('es-CO')}
+                            </StatHelpText>
+                        </Stat>
+                    </CardBody>
+                </Card>
 
-                <Box bg="white" p={5} borderRadius="lg" boxShadow="sm" borderLeft="4px solid" borderLeftColor="purple.400">
-                    <Stat>
-                        <HStack justify="space-between" mb={2}>
-                            <StatLabel color="gray.600">Completados</StatLabel>
-                            <FiCreditCard size={24} color="#805AD5" />
-                        </HStack>
-                        <StatNumber fontSize="3xl" color="purple.600">
-                            {estadisticas.pagosCompletados}
-                        </StatNumber>
-                        <StatHelpText>Pagos exitosos</StatHelpText>
-                    </Stat>
-                </Box>
+                <Card boxShadow="md" borderLeft="4px" borderLeftColor="orange.400">
+                    <CardBody>
+                        <Stat>
+                            <StatLabel color="gray.600" fontSize="sm">Pendientes</StatLabel>
+                            <StatNumber fontSize="3xl" color="orange.600">
+                                {pagos.filter(p => p.estado === 'pendiente').length}
+                            </StatNumber>
+                            <StatHelpText>
+                                ${pagos.filter(p => p.estado === 'pendiente').reduce((sum, p) => sum + parseFloat(p.monto || 0), 0).toLocaleString('es-CO')}
+                            </StatHelpText>
+                        </Stat>
+                    </CardBody>
+                </Card>
             </SimpleGrid>
 
-            {/* Gráficas */}
-            <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mb={6}>
-                <Box bg="white" p={5} borderRadius="lg" boxShadow="sm">
-                    <Text fontSize="lg" fontWeight="bold" mb={4} color="gray.700">
-                        Ingresos por Método de Pago
-                    </Text>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={estadisticas.datosMetodos}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="metodo" />
-                            <YAxis />
-                            <Tooltip formatter={(value) => `$${value.toLocaleString('es-CO')}`} />
-                            <Legend />
-                            <Bar dataKey="total" fill="#48BB78" name="Total ($)" />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </Box>
+            {/* Pestañas */}
+            <Tabs variant="enclosed" colorScheme="green">
+                <TabList>
+                    <Tab><FiDollarSign /> <Text ml={2}>Pagos</Text></Tab>
+                    <Tab><FiTrendingUp /> <Text ml={2}>Estadísticas</Text></Tab>
+                    <Tab><FiRefreshCw /> <Text ml={2}>Renovar Membresías</Text></Tab>
+                </TabList>
 
-                <Box bg="white" p={5} borderRadius="lg" boxShadow="sm">
-                    <Text fontSize="lg" fontWeight="bold" mb={4} color="gray.700">
-                        Distribución por Tipo de Pago
-                    </Text>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                            <Pie
-                                data={estadisticas.datosTipos}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                label={({ name, value }) => `${name}: ${value}`}
-                                outerRadius={100}
-                                fill="#8884d8"
-                                dataKey="value"
-                            >
-                                {estadisticas.datosTipos.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                            </Pie>
-                            <Tooltip />
-                            <Legend />
-                        </PieChart>
-                    </ResponsiveContainer>
-                </Box>
-            </SimpleGrid>
+                <TabPanels>
+                    {/* Pestaña: Pagos */}
+                    <TabPanel>
+                        <VStack spacing={4} align="stretch">
+                            {/* Filtros y Búsqueda */}
+                            <Card>
+                                <CardBody>
+                                    <SimpleGrid columns={{ base: 1, md: 2, lg: 6 }} spacing={3}>
+                                        <InputGroup>
+                                            <InputLeftElement pointerEvents="none">
+                                                <FiSearch color="gray" />
+                                            </InputLeftElement>
+                                            <Input
+                                                placeholder="Buscar..."
+                                                value={busqueda}
+                                                onChange={(e) => setBusqueda(e.target.value)}
+                                            />
+                                        </InputGroup>
 
-            <Divider mb={6} />
+                                        <Select
+                                            value={filtroEstado}
+                                            onChange={(e) => setFiltroEstado(e.target.value)}
+                                        >
+                                            <option value="todos">Todos los estados</option>
+                                            <option value="completado">Completado</option>
+                                            <option value="pagado">Pagado</option>
+                                            <option value="pendiente">Pendiente</option>
+                                            <option value="cancelado">Cancelado</option>
+                                        </Select>
 
-            {/* Controles */}
-            <HStack mb={6} spacing={4} flexWrap="wrap">
-                <Button leftIcon={<FiPlus />} colorScheme="green" onClick={onOpen}>
-                    💰 Nuevo Pago
-                </Button>
-                <InputGroup maxW="320px">
-                    <InputLeftElement pointerEvents="none">
-                        <FiSearch color="#48BB78" />
-                    </InputLeftElement>
-                    <Input
-                        placeholder="Buscar pagos..."
-                        value={busqueda}
-                        onChange={(e) => setBusqueda(e.target.value)}
-                        bg="white"
-                    />
-                </InputGroup>
-                <Select
-                    value={filtroEstado}
-                    onChange={(e) => setFiltroEstado(e.target.value)}
-                    maxW="180px"
-                    bg="white"
-                >
-                    <option value="todos">Todos los estados</option>
-                    <option value="completado">Completado</option>
-                    <option value="pendiente">Pendiente</option>
-                    <option value="cancelado">Cancelado</option>
-                </Select>
-                <Select
-                    value={filtroTipo}
-                    onChange={(e) => setFiltroTipo(e.target.value)}
-                    maxW="180px"
-                    bg="white"
-                >
-                    <option value="todos">Todos los tipos</option>
-                    <option value="membresia">Membresía</option>
-                    <option value="producto">Producto</option>
-                    <option value="sesion">Sesión</option>
-                </Select>
-            </HStack>
+                                        <Select
+                                            value={filtroTipo}
+                                            onChange={(e) => setFiltroTipo(e.target.value)}
+                                        >
+                                            <option value="todos">Todos los tipos</option>
+                                            <option value="membresia">Membresía</option>
+                                            <option value="producto">Producto</option>
+                                            <option value="sesion">Sesión</option>
+                                            <option value="otro">Otro</option>
+                                        </Select>
 
-            {/* Tabla */}
-            <Box bg="white" borderRadius="lg" overflow="hidden" boxShadow="sm">
-                <Table variant="simple">
-                    <Thead bg="gray.50">
-                        <Tr>
-                            <Th>ID</Th>
-                            <Th>Usuario</Th>
-                            <Th>Monto</Th>
-                            <Th>Tipo</Th>
-                            <Th>Método</Th>
-                            <Th>Estado</Th>
-                            <Th>Fecha</Th>
-                            <Th>Acciones</Th>
-                        </Tr>
-                    </Thead>
-                    <Tbody>
-                        {loading ? (
-                            <Tr>
-                                <Td colSpan={8} textAlign="center">Cargando...</Td>
-                            </Tr>
-                        ) : pagosFiltrados.length === 0 ? (
-                            <Tr>
-                                <Td colSpan={8} textAlign="center">No hay pagos registrados</Td>
-                            </Tr>
-                        ) : (
-                            pagosFiltrados.map((pago) => {
-                                const usuario = usuarios.find(u => u.id === pago.usuario_id)
-                                return (
-                                    <Tr key={pago.id}>
-                                        <Td>{pago.id}</Td>
-                                        <Td>
-                                            {usuario ? `${usuario.nombre} ${usuario.apellido}` : 'Usuario eliminado'}
-                                        </Td>
-                                        <Td fontWeight="bold" color="green.600">
-                                            ${parseFloat(pago.monto || 0).toLocaleString('es-CO')}
-                                        </Td>
-                                        <Td>
-                                            <Badge colorScheme={getTipoPagoColor(pago.tipo_pago)}>
-                                                {pago.tipo_pago}
-                                            </Badge>
-                                        </Td>
-                                        <Td>{pago.metodo_pago}</Td>
-                                        <Td>
-                                            <Badge colorScheme={getEstadoColor(pago.estado)}>
-                                                {pago.estado}
-                                            </Badge>
-                                        </Td>
-                                        <Td>{new Date(pago.fecha_pago).toLocaleDateString('es-ES')}</Td>
-                                        <Td>
-                                            <HStack spacing={2}>
-                                                <IconButton
-                                                    aria-label="Ver"
-                                                    icon={<FiEye />}
-                                                    size="sm"
-                                                    colorScheme="blue"
-                                                    variant="ghost"
-                                                />
-                                                <IconButton
-                                                    aria-label="Cancelar"
-                                                    icon={<FiTrash2 />}
-                                                    size="sm"
-                                                    colorScheme="red"
-                                                    variant="ghost"
-                                                    onClick={() => handleEliminarPago(pago.id)}
-                                                />
-                                            </HStack>
-                                        </Td>
-                                    </Tr>
-                                )
-                            })
-                        )}
-                    </Tbody>
-                </Table>
-            </Box>
+                                        <Select
+                                            value={filtroMetodo}
+                                            onChange={(e) => setFiltroMetodo(e.target.value)}
+                                        >
+                                            <option value="todos">Todos los métodos</option>
+                                            <option value="efectivo">Efectivo</option>
+                                            <option value="tarjeta">Tarjeta</option>
+                                            <option value="transferencia">Transferencia</option>
+                                        </Select>
+
+                                        <Button
+                                            leftIcon={<FiRefreshCw />}
+                                            onClick={cargarDatos}
+                                            variant="outline"
+                                            colorScheme="blue"
+                                        >
+                                            Actualizar
+                                        </Button>
+
+                                        <Button
+                                            leftIcon={<FiPlus />}
+                                            colorScheme="green"
+                                            onClick={onOpen}
+                                        >
+                                            Nuevo Pago
+                                        </Button>
+                                    </SimpleGrid>
+                                </CardBody>
+                            </Card>
+
+                            {/* Tabla de Pagos */}
+                            <Card>
+                                <CardBody overflowX="auto">
+                                    <Table variant="simple" size="sm">
+                                        <Thead>
+                                            <Tr>
+                                                <Th>ID</Th>
+                                                <Th>Cliente</Th>
+                                                <Th>Tipo</Th>
+                                                <Th>Monto</Th>
+                                                <Th>Método</Th>
+                                                <Th>Estado</Th>
+                                                <Th>Fecha</Th>
+                                                <Th>Concepto</Th>
+                                                <Th>Acciones</Th>
+                                            </Tr>
+                                        </Thead>
+                                        <Tbody>
+                                            {pagosFiltrados.length === 0 ? (
+                                                <Tr>
+                                                    <Td colSpan={9} textAlign="center" py={10}>
+                                                        <Text color="gray.500">No hay pagos registrados</Text>
+                                                    </Td>
+                                                </Tr>
+                                            ) : (
+                                                pagosFiltrados.map((pago) => {
+                                                    const usuario = usuarios.find(u => u.id === pago.usuario_id)
+                                                    return (
+                                                        <Tr key={pago.id} _hover={{ bg: 'gray.50' }}>
+                                                            <Td fontWeight="bold">#{pago.id}</Td>
+                                                            <Td>
+                                                                <Text fontWeight="medium">
+                                                                    {usuario ? `${usuario.nombre} ${usuario.apellido}` : 'Cliente desconocido'}
+                                                                </Text>
+                                                                <Text fontSize="xs" color="gray.500">{usuario?.email}</Text>
+                                                            </Td>
+                                                            <Td>
+                                                                <Badge colorScheme={getTipoPagoColor(pago.tipo_pago)}>
+                                                                    {pago.tipo_pago}
+                                                                </Badge>
+                                                            </Td>
+                                                            <Td fontWeight="bold" color="green.600">
+                                                                ${parseFloat(pago.monto || 0).toLocaleString('es-CO')}
+                                                            </Td>
+                                                            <Td>
+                                                                <HStack spacing={1}>
+                                                                    <FiCreditCard size={14} />
+                                                                    <Text fontSize="sm">{pago.metodo_pago}</Text>
+                                                                </HStack>
+                                                            </Td>
+                                                            <Td>
+                                                                <Badge colorScheme={getEstadoColor(pago.estado)}>
+                                                                    {pago.estado}
+                                                                </Badge>
+                                                            </Td>
+                                                            <Td>
+                                                                <Text fontSize="sm">{pago.fecha_pago || 'N/A'}</Text>
+                                                            </Td>
+                                                            <Td maxW="200px">
+                                                                <Text fontSize="sm" noOfLines={2}>
+                                                                    {pago.concepto || pago.descripcion || '-'}
+                                                                </Text>
+                                                            </Td>
+                                                            <Td>
+                                                                <HStack spacing={2}>
+                                                                    <IconButton
+                                                                        icon={<FiEye />}
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        colorScheme="blue"
+                                                                        aria-label="Ver detalles"
+                                                                        onClick={() => handleVerDetalles(pago)}
+                                                                        title="Ver detalles del pago"
+                                                                    />
+                                                                    {pago.estado === 'pendiente' && (
+                                                                        <IconButton
+                                                                            icon={<FiTrash2 />}
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            colorScheme="red"
+                                                                            aria-label="Cancelar pago"
+                                                                            onClick={() => handleEliminarPago(pago.id)}
+                                                                            title="Cancelar pago pendiente"
+                                                                        />
+                                                                    )}
+                                                                </HStack>
+                                                            </Td>
+                                                        </Tr>
+                                                    )
+                                                })
+                                            )}
+                                        </Tbody>
+                                    </Table>
+                                </CardBody>
+                            </Card>
+
+                            <Text fontSize="sm" color="gray.500" textAlign="right">
+                                Mostrando {pagosFiltrados.length} de {pagos.length} pagos
+                            </Text>
+                        </VStack>
+                    </TabPanel>
+
+                    {/* Pestaña: Estadísticas */}
+                    <TabPanel>
+                        <VStack spacing={6} align="stretch">
+                            <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+                                {/* Gráfico por Método de Pago */}
+                                <Card>
+                                    <CardBody>
+                                        <Heading size="md" mb={4}>Distribución por Método</Heading>
+                                        <Box h="300px">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie
+                                                        data={[
+                                                            { name: 'Efectivo', value: pagos.filter(p => p.metodo_pago === 'efectivo' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) },
+                                                            { name: 'Tarjeta', value: pagos.filter(p => p.metodo_pago === 'tarjeta' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) },
+                                                            { name: 'Transferencia', value: pagos.filter(p => p.metodo_pago === 'transferencia' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) }
+                                                        ]}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        labelLine={false}
+                                                        label={(entry) => `$${entry.value.toLocaleString('es-CO')}`}
+                                                        outerRadius={100}
+                                                        fill="#8884d8"
+                                                        dataKey="value"
+                                                    >
+                                                        <Cell fill="#48BB78" />
+                                                        <Cell fill="#4299E1" />
+                                                        <Cell fill="#ED8936" />
+                                                    </Pie>
+                                                    <RechartsTooltip formatter={(value) => `$${value.toLocaleString('es-CO')}`} />
+                                                    <Legend />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        </Box>
+                                    </CardBody>
+                                </Card>
+
+                                {/* Gráfico por Tipo de Pago */}
+                                <Card>
+                                    <CardBody>
+                                        <Heading size="md" mb={4}>Distribución por Tipo</Heading>
+                                        <Box h="300px">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart
+                                                    data={[
+                                                        { tipo: 'Membresía', monto: pagos.filter(p => p.tipo_pago === 'membresia' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) },
+                                                        { tipo: 'Producto', monto: pagos.filter(p => p.tipo_pago === 'producto' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) },
+                                                        { tipo: 'Sesión', monto: pagos.filter(p => p.tipo_pago === 'sesion' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) },
+                                                        { tipo: 'Otro', monto: pagos.filter(p => p.tipo_pago === 'otro' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) }
+                                                    ]}
+                                                >
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis dataKey="tipo" />
+                                                    <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} />
+                                                    <RechartsTooltip formatter={(value) => `$${value.toLocaleString('es-CO')}`} />
+                                                    <Bar dataKey="monto" fill="#805AD5" />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </Box>
+                                    </CardBody>
+                                </Card>
+                            </SimpleGrid>
+
+                            {/* Estadísticas Detalladas */}
+                            <Card>
+                                <CardBody>
+                                    <Heading size="md" mb={4}>Resumen Detallado</Heading>
+                                    <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+                                        <Box p={4} bg="green.50" borderRadius="md">
+                                            <Text fontSize="sm" color="gray.600" fontWeight="bold">Ingresos Totales</Text>
+                                            <Text fontSize="2xl" color="green.600" fontWeight="bold">
+                                                ${(estadisticas?.totalIngresos || 0).toLocaleString('es-CO')}
+                                            </Text>
+                                        </Box>
+                                        <Box p={4} bg="blue.50" borderRadius="md">
+                                            <Text fontSize="sm" color="gray.600" fontWeight="bold">Promedio por Pago</Text>
+                                            <Text fontSize="2xl" color="blue.600" fontWeight="bold">
+                                                ${(pagos.length > 0 ? (pagos.filter(p => p.estado === 'completado' || p.estado === 'pagado').reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) / pagos.filter(p => p.estado === 'completado' || p.estado === 'pagado').length) : 0).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+                                            </Text>
+                                        </Box>
+                                        <Box p={4} bg="purple.50" borderRadius="md">
+                                            <Text fontSize="sm" color="gray.600" fontWeight="bold">Total Transacciones</Text>
+                                            <Text fontSize="2xl" color="purple.600" fontWeight="bold">
+                                                {estadisticas?.totalPagos || pagos.length}
+                                            </Text>
+                                        </Box>
+                                    </SimpleGrid>
+                                </CardBody>
+                            </Card>
+
+                            {/* Estadísticas de Membresías */}
+                            {estadisticasMembresias && (
+                                <Card>
+                                    <CardBody>
+                                        <Heading size="md" mb={4}>Estadísticas de Membresías</Heading>
+                                        <SimpleGrid columns={{ base: 1, md: 4 }} spacing={4}>
+                                            <Box textAlign="center" p={4} bg="purple.50" borderRadius="md">
+                                                <Text fontSize="3xl" fontWeight="bold" color="purple.600">
+                                                    {estadisticasMembresias.totalMembresias}
+                                                </Text>
+                                                <Text fontSize="sm" color="gray.600">Membresías Vendidas</Text>
+                                            </Box>
+                                            <Box textAlign="center" p={4} bg="green.50" borderRadius="md">
+                                                <Text fontSize="3xl" fontWeight="bold" color="green.600">
+                                                    {estadisticasMembresias.activas}
+                                                </Text>
+                                                <Text fontSize="sm" color="gray.600">Activas</Text>
+                                            </Box>
+                                            <Box textAlign="center" p={4} bg="orange.50" borderRadius="md">
+                                                <Text fontSize="3xl" fontWeight="bold" color="orange.600">
+                                                    {estadisticasMembresias.porVencer}
+                                                </Text>
+                                                <Text fontSize="sm" color="gray.600">Por Vencer (7 días)</Text>
+                                            </Box>
+                                            <Box textAlign="center" p={4} bg="red.50" borderRadius="md">
+                                                <Text fontSize="3xl" fontWeight="bold" color="red.600">
+                                                    {estadisticasMembresias.vencidas}
+                                                </Text>
+                                                <Text fontSize="sm" color="gray.600">Vencidas</Text>
+                                            </Box>
+                                        </SimpleGrid>
+                                    </CardBody>
+                                </Card>
+                            )}
+                        </VStack>
+                    </TabPanel>
+
+                    {/* Pestaña: Renovar Membresías */}
+                    <TabPanel>
+                        <VStack spacing={6} align="stretch">
+                            <Alert status="info" borderRadius="md">
+                                <AlertIcon />
+                                <Box>
+                                    <Text fontWeight="bold">Renovación de Membresías</Text>
+                                    <Text fontSize="sm">Selecciona un cliente para renovar su membresía automáticamente</Text>
+                                </Box>
+                            </Alert>
+
+                            <Card>
+                                <CardBody>
+                                    <VStack spacing={4} align="stretch">
+                                        <Heading size="md">Clientes con Membresías Activas</Heading>
+                                        
+                                        <Table variant="simple">
+                                            <Thead>
+                                                <Tr>
+                                                    <Th>Cliente</Th>
+                                                    <Th>Email</Th>
+                                                    <Th>Última Membresía</Th>
+                                                    <Th>Fecha Vencimiento</Th>
+                                                    <Th>Acción</Th>
+                                                </Tr>
+                                            </Thead>
+                                            <Tbody>
+                                                {usuarios.filter(u => u.membresia_activa).map((usuario) => {
+                                                    const ultimoPago = pagos
+                                                        .filter(p => p.usuario_id === usuario.id && p.tipo_pago === 'membresia')
+                                                        .sort((a, b) => new Date(b.fecha_pago) - new Date(a.fecha_pago))[0]
+                                                    
+                                                    return (
+                                                        <Tr key={usuario.id}>
+                                                            <Td>
+                                                                <Text fontWeight="medium">{usuario.nombre} {usuario.apellido}</Text>
+                                                            </Td>
+                                                            <Td>{usuario.email}</Td>
+                                                            <Td>
+                                                                {ultimoPago ? (
+                                                                    <Badge colorScheme="purple">
+                                                                        ${parseFloat(ultimoPago.monto || 0).toLocaleString('es-CO')}
+                                                                    </Badge>
+                                                                ) : '-'}
+                                                            </Td>
+                                                            <Td>
+                                                                <Text fontSize="sm">
+                                                                    {usuario.fecha_vencimiento_membresia || 'N/A'}
+                                                                </Text>
+                                                            </Td>
+                                                            <Td>
+                                                                <Button
+                                                                    size="sm"
+                                                                    colorScheme="green"
+                                                                    leftIcon={<FiRefreshCw />}
+                                                                    onClick={() => handleRenovarMembresia(usuario)}
+                                                                >
+                                                                    Renovar
+                                                                </Button>
+                                                            </Td>
+                                                        </Tr>
+                                                    )
+                                                })}
+                                                {usuarios.filter(u => u.membresia_activa).length === 0 && (
+                                                    <Tr>
+                                                        <Td colSpan={5} textAlign="center" py={10}>
+                                                            <Text color="gray.500">No hay clientes con membresías activas</Text>
+                                                        </Td>
+                                                    </Tr>
+                                                )}
+                                            </Tbody>
+                                        </Table>
+                                    </VStack>
+                                </CardBody>
+                            </Card>
+                        </VStack>
+                    </TabPanel>
+                </TabPanels>
+            </Tabs>
 
             {/* Modal Nuevo Pago */}
-            <Modal isOpen={isOpen} onClose={onClose} size="md">
+            <Modal isOpen={isOpen} onClose={onClose} size="lg">
                 <ModalOverlay />
                 <ModalContent>
                     <ModalHeader>💰 Registrar Nuevo Pago</ModalHeader>
+                    <ModalCloseButton />
                     <ModalBody>
                         <VStack spacing={4}>
                             <FormControl isRequired>
@@ -487,7 +800,7 @@ export default function PagosTab() {
                                 >
                                     {usuarios.map(u => (
                                         <option key={u.id} value={u.id}>
-                                            {u.nombre} {u.apellido}
+                                            {u.nombre} {u.apellido} - {u.email}
                                         </option>
                                     ))}
                                 </Select>
@@ -500,7 +813,7 @@ export default function PagosTab() {
                                     onChange={(value) => setNuevoPago({ ...nuevoPago, monto: value })}
                                     min={0}
                                 >
-                                    <NumberInputField placeholder="0" />
+                                    <NumberInputField placeholder="Ingrese el monto" />
                                 </NumberInput>
                             </FormControl>
 
@@ -531,11 +844,11 @@ export default function PagosTab() {
                                 </Select>
                             </FormControl>
 
-                            <FormControl>
-                                <FormLabel>Descripción</FormLabel>
+                            <FormControl isRequired>
+                                <FormLabel>Concepto</FormLabel>
                                 <Input
-                                    value={nuevoPago.descripcion}
-                                    onChange={(e) => setNuevoPago({ ...nuevoPago, descripcion: e.target.value })}
+                                    value={nuevoPago.concepto}
+                                    onChange={(e) => setNuevoPago({ ...nuevoPago, concepto: e.target.value })}
                                     placeholder="Descripción del pago"
                                 />
                             </FormControl>
@@ -545,9 +858,99 @@ export default function PagosTab() {
                         <Button variant="ghost" mr={3} onClick={onClose}>
                             Cancelar
                         </Button>
-                        <Button colorScheme="green" onClick={handleCrearPago}>
+                        <Button colorScheme="green" onClick={handleCrearPago} leftIcon={<FiDollarSign />}>
                             Registrar Pago
                         </Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+
+            {/* Modal Detalles del Pago */}
+            <Modal isOpen={isDetallesOpen} onClose={onDetallesClose} size="lg">
+                <ModalOverlay />
+                <ModalContent>
+                    <ModalHeader>
+                        <HStack>
+                            <FiFileText />
+                            <Text>Detalles del Pago #{pagoSeleccionado?.id}</Text>
+                        </HStack>
+                    </ModalHeader>
+                    <ModalCloseButton />
+                    <ModalBody>
+                        {pagoSeleccionado && (
+                            <VStack spacing={4} align="stretch">
+                                <Card variant="outline">
+                                    <CardBody>
+                                        <SimpleGrid columns={2} spacing={4}>
+                                            <Box>
+                                                <Text fontSize="sm" color="gray.600" fontWeight="bold">Cliente</Text>
+                                                <Text fontSize="md" mt={1}>
+                                                    {usuarios.find(u => u.id === pagoSeleccionado.usuario_id)?.nombre} {usuarios.find(u => u.id === pagoSeleccionado.usuario_id)?.apellido}
+                                                </Text>
+                                                <Text fontSize="xs" color="gray.500">
+                                                    {usuarios.find(u => u.id === pagoSeleccionado.usuario_id)?.email}
+                                                </Text>
+                                            </Box>
+
+                                            <Box>
+                                                <Text fontSize="sm" color="gray.600" fontWeight="bold">Estado</Text>
+                                                <Badge colorScheme={getEstadoColor(pagoSeleccionado.estado)} mt={1} fontSize="md">
+                                                    {pagoSeleccionado.estado?.toUpperCase()}
+                                                </Badge>
+                                            </Box>
+
+                                            <Box>
+                                                <Text fontSize="sm" color="gray.600" fontWeight="bold">Monto</Text>
+                                                <Text fontSize="2xl" fontWeight="bold" color="green.600" mt={1}>
+                                                    ${parseFloat(pagoSeleccionado.monto || 0).toLocaleString('es-CO')}
+                                                </Text>
+                                            </Box>
+
+                                            <Box>
+                                                <Text fontSize="sm" color="gray.600" fontWeight="bold">Tipo de Pago</Text>
+                                                <Badge colorScheme={getTipoPagoColor(pagoSeleccionado.tipo_pago)} mt={1} fontSize="md">
+                                                    {pagoSeleccionado.tipo_pago?.toUpperCase()}
+                                                </Badge>
+                                            </Box>
+
+                                            <Box>
+                                                <Text fontSize="sm" color="gray.600" fontWeight="bold">Método de Pago</Text>
+                                                <HStack mt={1}>
+                                                    <FiCreditCard />
+                                                    <Text fontSize="md">{pagoSeleccionado.metodo_pago}</Text>
+                                                </HStack>
+                                            </Box>
+
+                                            <Box>
+                                                <Text fontSize="sm" color="gray.600" fontWeight="bold">Fecha de Pago</Text>
+                                                <HStack mt={1}>
+                                                    <FiCalendar />
+                                                    <Text fontSize="md">{pagoSeleccionado.fecha_pago || 'N/A'}</Text>
+                                                </HStack>
+                                            </Box>
+
+                                            <Box gridColumn="span 2">
+                                                <Text fontSize="sm" color="gray.600" fontWeight="bold">Concepto</Text>
+                                                <Text fontSize="md" mt={1}>
+                                                    {pagoSeleccionado.concepto || pagoSeleccionado.descripcion || 'Sin descripción'}
+                                                </Text>
+                                            </Box>
+
+                                            {pagoSeleccionado.created_at && (
+                                                <Box gridColumn="span 2">
+                                                    <Text fontSize="xs" color="gray.500">
+                                                        Registrado el: {pagoSeleccionado.created_at}
+                                                    </Text>
+                                                </Box>
+                                            )}
+                                        </SimpleGrid>
+                                    </CardBody>
+                                </Card>
+                            </VStack>
+                        )}
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button onClick={onDetallesClose}>Cerrar</Button>
                     </ModalFooter>
                 </ModalContent>
             </Modal>

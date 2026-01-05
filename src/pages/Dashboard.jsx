@@ -82,8 +82,13 @@ function HomeTab() {
                 const clientesActivos = usuarios.filter(u => u.estado === 'activo').length
                 const clientesInactivos = usuarios.length - clientesActivos
                 
-                const pagosValidos = pagos.filter(p => p.estado === 'pagado' || p.estado === 'completado')
+                // Contar todos los pagos excepto cancelados y fallidos
+                const pagosValidos = pagos.filter(p => {
+                    const estado = (p.estado || '').toLowerCase()
+                    return estado !== 'cancelado' && estado !== 'fallido'
+                })
                 console.log('💰 Pagos válidos:', pagosValidos.length)
+                console.log('📋 Estados de pagos:', pagos.map(p => ({ id: p.id, estado: p.estado, monto: p.monto })))
                 
                 const ingresosMes = pagosValidos.reduce((sum, p) => {
                     const monto = parseFloat(p.monto || 0)
