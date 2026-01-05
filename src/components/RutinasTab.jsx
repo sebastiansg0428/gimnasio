@@ -31,10 +31,72 @@ import {
     InputGroup,
     InputLeftElement,
     InputRightElement,
+    Tabs,
+    TabList,
+    TabPanels,
+    Tab,
+    TabPanel,
+    Badge,
+    Divider,
+    Grid,
+    GridItem,
+    Stat,
+    StatLabel,
+    StatNumber,
+    StatHelpText,
+    Flex,
+    Spinner,
+    Alert,
+    AlertIcon,
+    AlertTitle,
+    AlertDescription,
+    List,
+    ListItem,
+    ListIcon,
+    Accordion,
+    AccordionItem,
+    AccordionButton,
+    AccordionPanel,
+    AccordionIcon,
+    Tooltip,
+    Menu,
+    MenuButton,
+    MenuList,
+    MenuItem,
 } from '@chakra-ui/react'
-import { FiPlus, FiEdit, FiTrash2, FiSearch, FiX } from 'react-icons/fi'
+import { 
+    FiPlus, 
+    FiEdit, 
+    FiTrash2, 
+    FiSearch, 
+    FiX, 
+    FiEye, 
+    FiUsers, 
+    FiActivity,
+    FiBarChart2,
+    FiCheckCircle,
+    FiTarget,
+    FiClock,
+    FiCalendar,
+    FiChevronDown,
+    FiMoreVertical
+} from 'react-icons/fi'
 import { useState, useRef, useEffect } from 'react'
-import { getRutinas, createRutina, updateRutina, deleteRutina } from '../utils/api'
+import { 
+    getRutinas, 
+    createRutina, 
+    updateRutina, 
+    deleteRutina,
+    getRutina,
+    getEjercicios,
+    addEjercicioToRutina,
+    updateEjercicioInRutina,
+    deleteEjercicioFromRutina,
+    getUsuarios,
+    assignRutinaToUsuario,
+    getRutinasUsuario,
+    getEstadisticasRutinas
+} from '../utils/api'
 
 const initialRutinas = [
     { id: 1, nombre: 'Full Body Básico', duracionMin: 45, nivel: 'Principiante', descripcion: 'Rutina enfocada en fuerza global.' },
@@ -51,8 +113,21 @@ export default function RutinasTab() {
     const [busqueda, setBusqueda] = useState('')
     const [inputValue, setInputValue] = useState('')
     const [filtroNivel, setFiltroNivel] = useState('todos')
+    const [filtroObjetivo, setFiltroObjetivo] = useState('todos')
+    const [filtroTipo, setFiltroTipo] = useState('todos')
     const [selected, setSelected] = useState(null)
+    const [rutinaDetalle, setRutinaDetalle] = useState(null)
+    const [ejerciciosDisponibles, setEjerciciosDisponibles] = useState([])
+    const [usuarios, setUsuarios] = useState([])
+    const [estadisticas, setEstadisticas] = useState(null)
+    const [selectedEjercicio, setSelectedEjercicio] = useState(null)
+    const [selectedUsuario, setSelectedUsuario] = useState(null)
+    
     const { isOpen, onOpen, onClose } = useDisclosure()
+    const { isOpen: isDetalleOpen, onOpen: onDetalleOpen, onClose: onDetalleClose } = useDisclosure()
+    const { isOpen: isEjercicioOpen, onOpen: onEjercicioOpen, onClose: onEjercicioClose } = useDisclosure()
+    const { isOpen: isAsignarOpen, onOpen: onAsignarOpen, onClose: onAsignarClose } = useDisclosure()
+    
     const toast = useToast()
     const nombreRef = useRef(null)
 
@@ -81,7 +156,13 @@ export default function RutinasTab() {
         async function load() {
             setLoading(true)
             try {
-                const data = await getRutinas()
+                const [dataRutinas, dataEjercicios, dataUsuarios, dataEstadisticas] = await Promise.all([
+                    getRutinas(),
+                    getEjercicios(),
+                    getUsuarios(),
+                    getEstadisticasRutinas().catch(() => null)
+                ])
+                
                 const normalize = (r) => ({
                     ...r,
                     objetivo: r.objetivo ?? r.objetivo_presupuestado ?? '',
@@ -89,10 +170,16 @@ export default function RutinasTab() {
                     frecuencia_por_semana: r.frecuencia_por_semana ?? r.frecuencia ?? null,
                     nivel: (r.nivel ?? '').toString(),
                 })
-                if (mounted) setRutinas(Array.isArray(data) ? data.map(normalize) : [])
+                
+                if (mounted) {
+                    setRutinas(Array.isArray(dataRutinas) ? dataRutinas.map(normalize) : [])
+                    setEjerciciosDisponibles(Array.isArray(dataEjercicios) ? dataEjercicios : [])
+                    setUsuarios(Array.isArray(dataUsuarios) ? dataUsuarios : [])
+                    setEstadisticas(dataEstadisticas)
+                }
             } catch (err) {
-                console.error('Error cargando rutinas', err)
-                toast({ title: 'No se pudieron cargar las rutinas', status: 'error', duration: 3000 })
+                console.error('Error cargando datos', err)
+                toast({ title: 'Error al cargar datos', status: 'error', duration: 3000 })
             } finally {
                 if (mounted) setLoading(false)
             }
@@ -117,9 +204,15 @@ export default function RutinasTab() {
         const nombre = (r.nombre || '').toString().toLowerCase()
         const descripcion = (r.descripcion || '').toString().toLowerCase()
         const nivelVal = (r.nivel || '').toString().toLowerCase()
+        const objetivoVal = (r.objetivo || '').toString().toLowerCase()
+        const tipoVal = (r.tipo || '').toString().toLowerCase()
+        
         const matchBusqueda = nombre.includes(busqueda.toLowerCase()) || descripcion.includes(busqueda.toLowerCase())
         const matchNivel = filtroNivel === 'todos' || nivelVal === filtroNivel.toLowerCase()
-        return matchBusqueda && matchNivel
+        const matchObjetivo = filtroObjetivo === 'todos' || objetivoVal === filtroObjetivo.toLowerCase()
+        const matchTipo = filtroTipo === 'todos' || tipoVal === filtroTipo.toLowerCase()
+        
+        return matchBusqueda && matchNivel && matchObjetivo && matchTipo
     })
 
     function handleNuevo() {
@@ -224,129 +317,448 @@ export default function RutinasTab() {
         guardar()
     }
 
+    async function handleVerDetalle(rutina) {
+        try {
+            const detalle = await getRutina(rutina.id)
+            setRutinaDetalle(detalle)
+            onDetalleOpen()
+        } catch (err) {
+            console.error(err)
+            toast({ title: 'Error al cargar detalle', status: 'error', duration: 3000 })
+        }
+    }
+
+    function handleAgregarEjercicio(rutina) {
+        setRutinaDetalle(rutina)
+        setSelectedEjercicio({
+            ejercicio_id: '',
+            orden: 1,
+            series: 3,
+            repeticiones: 10,
+            descanso_segundos: 60,
+            notas: ''
+        })
+        onEjercicioOpen()
+    }
+
+    function handleEditarEjercicio(rutina, ejercicio) {
+        setRutinaDetalle(rutina)
+        setSelectedEjercicio(ejercicio)
+        onEjercicioOpen()
+    }
+
+    async function handleSaveEjercicio() {
+        if (!selectedEjercicio.ejercicio_id) {
+            toast({ title: 'Selecciona un ejercicio', status: 'warning', duration: 2000 })
+            return
+        }
+
+        try {
+            if (selectedEjercicio.id) {
+                // Actualizar ejercicio existente
+                await updateEjercicioInRutina(rutinaDetalle.id, selectedEjercicio.ejercicio_id, {
+                    orden: selectedEjercicio.orden,
+                    series: selectedEjercicio.series,
+                    repeticiones: selectedEjercicio.repeticiones,
+                    descanso_segundos: selectedEjercicio.descanso_segundos,
+                    notas: selectedEjercicio.notas
+                })
+                toast({ title: 'Ejercicio actualizado', status: 'success', duration: 2000 })
+            } else {
+                // Agregar nuevo ejercicio
+                await addEjercicioToRutina(rutinaDetalle.id, selectedEjercicio)
+                toast({ title: 'Ejercicio agregado', status: 'success', duration: 2000 })
+            }
+            
+            // Recargar detalle
+            const detalle = await getRutina(rutinaDetalle.id)
+            setRutinaDetalle(detalle)
+            onEjercicioClose()
+        } catch (err) {
+            console.error(err)
+            toast({ title: 'Error al guardar ejercicio', status: 'error', duration: 3000 })
+        }
+    }
+
+    async function handleEliminarEjercicio(rutinaId, ejercicioId) {
+        try {
+            await deleteEjercicioFromRutina(rutinaId, ejercicioId)
+            const detalle = await getRutina(rutinaId)
+            setRutinaDetalle(detalle)
+            toast({ title: 'Ejercicio eliminado', status: 'info', duration: 2000 })
+        } catch (err) {
+            console.error(err)
+            toast({ title: 'Error al eliminar ejercicio', status: 'error', duration: 3000 })
+        }
+    }
+
+    function handleAsignarRutina(rutina) {
+        setRutinaDetalle(rutina)
+        setSelectedUsuario({
+            usuario_id: '',
+            fecha_inicio: new Date().toISOString().split('T')[0],
+            fecha_fin: '',
+            objetivo_personalizado: '',
+            notas: ''
+        })
+        onAsignarOpen()
+    }
+
+    async function handleSaveAsignacion() {
+        if (!selectedUsuario.usuario_id) {
+            toast({ title: 'Selecciona un usuario', status: 'warning', duration: 2000 })
+            return
+        }
+
+        try {
+            await assignRutinaToUsuario(selectedUsuario.usuario_id, rutinaDetalle.id, {
+                fecha_inicio: selectedUsuario.fecha_inicio,
+                fecha_fin: selectedUsuario.fecha_fin || null,
+                objetivo_personalizado: selectedUsuario.objetivo_personalizado,
+                notas: selectedUsuario.notas
+            })
+            toast({ title: 'Rutina asignada exitosamente', status: 'success', duration: 2000 })
+            onAsignarClose()
+        } catch (err) {
+            console.error(err)
+            toast({ title: 'Error al asignar rutina', status: 'error', duration: 3000 })
+        }
+    }
+
     return (
         <Box>
-            <HStack mb={6} spacing={4}>
-                <Button leftIcon={<FiPlus />} colorScheme="green" _hover={{ borderColor: "green.400" }} onClick={handleNuevo} minW="fit-content" px={4}>
-                    Nueva Rutina
-                </Button>
-                <InputGroup maxW="320px" position="relative">
-                    <InputLeftElement pointerEvents="none">
-                        <FiSearch color="#24A148" />
-                    </InputLeftElement>
-                    <Input
-                        placeholder="Buscar rutinas..."
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        bg="white"
-                        color="gray.800"
-                        borderColor="gray.300"
-                        _placeholder={{ color: "gray.500" }}
-                        _focus={{
-                            borderColor: 'green.400',
-                            boxShadow: '0 0 0 1px #48bb78',
-                        }}
-                    />
-                    {inputValue && (
-                        <InputRightElement>
-                            <IconButton
-                                aria-label="Limpiar búsqueda"
-                                icon={<FiX />}
-                                size="sm"
-                                variant="ghost"
-                                onClick={limpiarBusqueda}
-                            />
-                        </InputRightElement>
-                    )}
-                </InputGroup>
+            <Tabs colorScheme="green" variant="enclosed">
+                <TabList mb={4}>
+                    <Tab _selected={{ bg: 'green.500', color: 'white' }}>
+                        <HStack>
+                            <FiTarget />
+                            <Text>Rutinas</Text>
+                        </HStack>
+                    </Tab>
+                    <Tab _selected={{ bg: 'green.500', color: 'white' }}>
+                        <HStack>
+                            <FiBarChart2 />
+                            <Text>Estadísticas</Text>
+                        </HStack>
+                    </Tab>
+                </TabList>
 
+                <TabPanels>
+                    {/* PANEL DE RUTINAS */}
+                    <TabPanel p={0}>
+                        <VStack align="stretch" spacing={6}>
+                            {/* Estadísticas Rápidas */}
+                            {estadisticas && (
+                                <Grid templateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={4}>
+                                    <GridItem>
+                                        <Stat bg="white" p={4} borderRadius="lg" boxShadow="sm">
+                                            <StatLabel color="gray.600">Total Rutinas</StatLabel>
+                                            <StatNumber color="green.600">{estadisticas.total_rutinas || rutinas.length}</StatNumber>
+                                            <StatHelpText>
+                                                <FiActivity style={{ display: 'inline', marginRight: '4px' }} />
+                                                Activas
+                                            </StatHelpText>
+                                        </Stat>
+                                    </GridItem>
+                                    <GridItem>
+                                        <Stat bg="white" p={4} borderRadius="lg" boxShadow="sm">
+                                            <StatLabel color="gray.600">Más Popular</StatLabel>
+                                            <StatNumber fontSize="lg" color="purple.600">
+                                                {estadisticas.rutina_mas_popular?.nombre || 'N/A'}
+                                            </StatNumber>
+                                            <StatHelpText>{estadisticas.rutina_mas_popular?.total_asignaciones || 0} asignaciones</StatHelpText>
+                                        </Stat>
+                                    </GridItem>
+                                    <GridItem>
+                                        <Stat bg="white" p={4} borderRadius="lg" boxShadow="sm">
+                                            <StatLabel color="gray.600">Rutinas Públicas</StatLabel>
+                                            <StatNumber color="blue.600">
+                                                {rutinas.filter(r => r.tipo === 'publica').length}
+                                            </StatNumber>
+                                            <StatHelpText>Disponibles para todos</StatHelpText>
+                                        </Stat>
+                                    </GridItem>
+                                </Grid>
+                            )}
 
-                <Select
-                    value={filtroNivel}
-                    onChange={(e) => setFiltroNivel(e.target.value)}
-                    maxW="200px"
-                    bg="white"
-                    color="gray.800"
-                    borderColor="gray.300"
-                    _focus={{ borderColor: "green.400", boxShadow: "0 0 0 1px #48bb78" }}
-                    _hover={{ borderColor: "green.400" }}
-                >
-                    <option value="todos">Todos los niveles</option>
-                    <option value="principiante">Principiante</option>
-                    <option value="intermedio">Intermedio</option>
-                    <option value="avanzado">Avanzado</option>
-                </Select>
-            </HStack>
+                            {/* Filtros y Búsqueda */}
+                            <HStack spacing={4} flexWrap="wrap">
+                                <Button 
+                                    leftIcon={<FiPlus />} 
+                                    colorScheme="green" 
+                                    onClick={handleNuevo}
+                                    size="md"
+                                >
+                                    Nueva Rutina
+                                </Button>
+                                
+                                <InputGroup maxW="320px">
+                                    <InputLeftElement pointerEvents="none">
+                                        <FiSearch color="#24A148" />
+                                    </InputLeftElement>
+                                    <Input
+                                        placeholder="Buscar rutinas..."
+                                        value={inputValue}
+                                        onChange={(e) => setInputValue(e.target.value)}
+                                        bg="white"
+                                        borderColor="gray.300"
+                                        _focus={{ borderColor: 'green.400', boxShadow: '0 0 0 1px #48bb78' }}
+                                    />
+                                    {inputValue && (
+                                        <InputRightElement>
+                                            <IconButton
+                                                aria-label="Limpiar búsqueda"
+                                                icon={<FiX />}
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={limpiarBusqueda}
+                                            />
+                                        </InputRightElement>
+                                    )}
+                                </InputGroup>
 
-                <Box overflowX="auto" bg="white" borderRadius="lg" boxShadow="sm">
-                <Table variant="simple">
-                    <Thead bg="gray.50">
-                        <Tr>
-                            <Th color="gray.700">Nombre</Th>
-                            <Th color="gray.700">Nivel</Th>
-                            <Th color="gray.700">Objetivo</Th>
-                            <Th color="gray.700">Duración (min)</Th>
-                            <Th color="gray.700">Frecuencia / semana</Th>
-                            <Th color="gray.700">Tipo</Th>
-                            <Th color="gray.700">Estado</Th>
-                            <Th color="gray.700">Descripción</Th>
-                            <Th></Th>
-                        </Tr>
-                    </Thead>
-                    <Tbody>
-                        {rutinasFiltradas.map(r => (
-                            <Tr key={r.id} _hover={{ bg: "gray.50" }}>
-                                <Td>
-                                    <Text fontWeight="medium" color="gray.800">{r.nombre}</Text>
-                                </Td>
-                                <Td>
-                                    <Tag colorScheme={(r.nivel || '').toLowerCase() === 'avanzado' ? 'red' : (r.nivel || '').toLowerCase() === 'intermedio' ? 'yellow' : 'green'}>
-                                        {r.nivel}
-                                    </Tag>
-                                </Td>
-                                <Td color="gray.700">{r.objetivo || '-'}</Td>
-                                <Td color="gray.700">{r.duracion_estimada ?? '-'} min</Td>
-                                <Td color="gray.700">{r.frecuencia_semanal || '-'} días</Td>
-                                <Td>
-                                    <Tag colorScheme={r.tipo === 'publica' ? 'blue' : 'purple'}>
-                                        {r.tipo}
-                                    </Tag>
-                                </Td>
-                                <Td>
-                                    <Tag colorScheme={r.estado === 'activo' ? 'green' : 'gray'}>
-                                        {r.estado}
-                                    </Tag>
-                                </Td>
-                                <Td>
-                                    <Text noOfLines={2} maxW="30ch" color="gray.600">{r.descripcion}</Text>
-                                </Td>
-                                <Td>
-                                    <HStack>
-                                        <IconButton 
-                                            aria-label="Editar" 
-                                            icon={<FiEdit />} 
-                                            size="sm" 
-                                            variant="ghost" 
-                                            color="green.500"
-                                            _hover={{ bg: "green.50", color: "green.600" }}
-                                            onClick={() => handleEditar(r)} 
-                                        />
-                                        <IconButton 
-                                            aria-label="Eliminar" 
-                                            icon={<FiTrash2 />} 
-                                            size="sm" 
-                                            variant="ghost" 
-                                            color="red.500"
-                                            _hover={{ bg: "red.50", color: "red.600" }}
-                                            onClick={() => handleEliminar(r.id)} 
-                                        />
-                                    </HStack>
-                                </Td>
-                            </Tr>
-                        ))}
-                    </Tbody>
-                </Table>
-            </Box>
+                                <Select
+                                    value={filtroNivel}
+                                    onChange={(e) => setFiltroNivel(e.target.value)}
+                                    maxW="180px"
+                                    bg="white"
+                                    borderColor="gray.300"
+                                >
+                                    <option value="todos">Todos los niveles</option>
+                                    <option value="principiante">Principiante</option>
+                                    <option value="intermedio">Intermedio</option>
+                                    <option value="avanzado">Avanzado</option>
+                                </Select>
+
+                                <Select
+                                    value={filtroObjetivo}
+                                    onChange={(e) => setFiltroObjetivo(e.target.value)}
+                                    maxW="180px"
+                                    bg="white"
+                                    borderColor="gray.300"
+                                >
+                                    <option value="todos">Todos los objetivos</option>
+                                    <option value="tonificacion">Tonificación</option>
+                                    <option value="hipertrofia">Hipertrofia</option>
+                                    <option value="fuerza">Fuerza</option>
+                                    <option value="perdida_peso">Pérdida de Peso</option>
+                                    <option value="cardio">Cardio</option>
+                                </Select>
+
+                                <Select
+                                    value={filtroTipo}
+                                    onChange={(e) => setFiltroTipo(e.target.value)}
+                                    maxW="150px"
+                                    bg="white"
+                                    borderColor="gray.300"
+                                >
+                                    <option value="todos">Todos los tipos</option>
+                                    <option value="publica">Pública</option>
+                                    <option value="privada">Privada</option>
+                                </Select>
+                            </HStack>
+
+                            {/* Tabla de Rutinas */}
+                            {loading ? (
+                                <Flex justify="center" align="center" h="200px">
+                                    <Spinner size="xl" color="green.500" />
+                                </Flex>
+                            ) : rutinasFiltradas.length === 0 ? (
+                                <Alert status="info" borderRadius="lg">
+                                    <AlertIcon />
+                                    <AlertTitle>No hay rutinas</AlertTitle>
+                                    <AlertDescription>
+                                        {busqueda || filtroNivel !== 'todos' || filtroObjetivo !== 'todos' 
+                                            ? 'No se encontraron rutinas con los filtros aplicados'
+                                            : 'Comienza creando tu primera rutina'}
+                                    </AlertDescription>
+                                </Alert>
+                            ) : (
+                                <Box overflowX="auto" bg="white" borderRadius="lg" boxShadow="sm">
+                                    <Table variant="simple">
+                                        <Thead bg="gray.50">
+                                            <Tr>
+                                                <Th color="gray.700">Nombre</Th>
+                                                <Th color="gray.700">Nivel</Th>
+                                                <Th color="gray.700">Objetivo</Th>
+                                                <Th color="gray.700">Duración</Th>
+                                                <Th color="gray.700">Frecuencia</Th>
+                                                <Th color="gray.700">Tipo</Th>
+                                                <Th color="gray.700">Estado</Th>
+                                                <Th color="gray.700">Descripción</Th>
+                                                <Th></Th>
+                                            </Tr>
+                                        </Thead>
+                                        <Tbody>
+                                            {rutinasFiltradas.map(r => (
+                                                <Tr key={r.id} _hover={{ bg: "gray.50" }}>
+                                                    <Td>
+                                                        <Text fontWeight="medium" color="gray.800">{r.nombre}</Text>
+                                                    </Td>
+                                                    <Td>
+                                                        <Tag colorScheme={
+                                                            (r.nivel || '').toLowerCase() === 'avanzado' ? 'red' : 
+                                                            (r.nivel || '').toLowerCase() === 'intermedio' ? 'yellow' : 'green'
+                                                        }>
+                                                            {r.nivel}
+                                                        </Tag>
+                                                    </Td>
+                                                    <Td>
+                                                        <Tag colorScheme="purple" size="sm">
+                                                            {r.objetivo || '-'}
+                                                        </Tag>
+                                                    </Td>
+                                                    <Td color="gray.700">
+                                                        <HStack>
+                                                            <FiClock />
+                                                            <Text>{r.duracion_estimada || '-'} min</Text>
+                                                        </HStack>
+                                                    </Td>
+                                                    <Td color="gray.700">
+                                                        <HStack>
+                                                            <FiCalendar />
+                                                            <Text>{r.frecuencia_semanal || '-'} días/sem</Text>
+                                                        </HStack>
+                                                    </Td>
+                                                    <Td>
+                                                        <Tag colorScheme={r.tipo === 'publica' ? 'blue' : 'purple'}>
+                                                            {r.tipo}
+                                                        </Tag>
+                                                    </Td>
+                                                    <Td>
+                                                        <Tag colorScheme={r.estado === 'activo' ? 'green' : 'gray'}>
+                                                            {r.estado}
+                                                        </Tag>
+                                                    </Td>
+                                                    <Td>
+                                                        <Text noOfLines={2} maxW="30ch" color="gray.600" fontSize="sm">
+                                                            {r.descripcion || 'Sin descripción'}
+                                                        </Text>
+                                                    </Td>
+                                                    <Td>
+                                                        <Menu>
+                                                            <MenuButton
+                                                                as={IconButton}
+                                                                icon={<FiMoreVertical />}
+                                                                variant="ghost"
+                                                                size="sm"
+                                                            />
+                                                            <MenuList>
+                                                                <MenuItem icon={<FiEye />} onClick={() => handleVerDetalle(r)}>
+                                                                    Ver Detalle
+                                                                </MenuItem>
+                                                                <MenuItem icon={<FiEdit />} onClick={() => handleEditar(r)}>
+                                                                    Editar
+                                                                </MenuItem>
+                                                                <MenuItem icon={<FiUsers />} onClick={() => handleAsignarRutina(r)}>
+                                                                    Asignar a Usuario
+                                                                </MenuItem>
+                                                                <Divider />
+                                                                <MenuItem icon={<FiTrash2 />} color="red.500" onClick={() => handleEliminar(r.id)}>
+                                                                    Eliminar
+                                                                </MenuItem>
+                                                            </MenuList>
+                                                        </Menu>
+                                                    </Td>
+                                                </Tr>
+                                            ))}
+                                        </Tbody>
+                                    </Table>
+                                </Box>
+                            )}
+                        </VStack>
+                    </TabPanel>
+
+                    {/* PANEL DE ESTADÍSTICAS */}
+                    <TabPanel>
+                        {estadisticas ? (
+                            <Grid templateColumns="repeat(auto-fit, minmax(300px, 1fr))" gap={6}>
+                                <GridItem colSpan={1}>
+                                    <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
+                                        <Heading size="md" mb={4} color="green.600">
+                                            <FiActivity style={{ display: 'inline', marginRight: '8px' }} />
+                                            Resumen General
+                                        </Heading>
+                                        <VStack align="stretch" spacing={3}>
+                                            <Flex justify="space-between">
+                                                <Text color="gray.600">Total de Rutinas:</Text>
+                                                <Badge colorScheme="green" fontSize="md">{estadisticas.total_rutinas || 0}</Badge>
+                                            </Flex>
+                                            <Flex justify="space-between">
+                                                <Text color="gray.600">Rutinas Activas:</Text>
+                                                <Badge colorScheme="blue" fontSize="md">{estadisticas.rutinas_activas || 0}</Badge>
+                                            </Flex>
+                                            <Flex justify="space-between">
+                                                <Text color="gray.600">Total Asignaciones:</Text>
+                                                <Badge colorScheme="purple" fontSize="md">{estadisticas.total_asignaciones || 0}</Badge>
+                                            </Flex>
+                                        </VStack>
+                                    </Box>
+                                </GridItem>
+
+                                <GridItem colSpan={1}>
+                                    <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
+                                        <Heading size="md" mb={4} color="purple.600">
+                                            <FiTarget style={{ display: 'inline', marginRight: '8px' }} />
+                                            Top 5 Rutinas Populares
+                                        </Heading>
+                                        <List spacing={3}>
+                                            {(estadisticas.top_rutinas || []).slice(0, 5).map((rutina, idx) => (
+                                                <ListItem key={idx}>
+                                                    <Flex justify="space-between" align="center">
+                                                        <HStack>
+                                                            <Badge colorScheme="green">{idx + 1}</Badge>
+                                                            <Text fontWeight="medium">{rutina.nombre}</Text>
+                                                        </HStack>
+                                                        <Badge colorScheme="blue">{rutina.total_asignaciones || 0} asignaciones</Badge>
+                                                    </Flex>
+                                                </ListItem>
+                                            ))}
+                                        </List>
+                                    </Box>
+                                </GridItem>
+
+                                <GridItem colSpan={1}>
+                                    <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
+                                        <Heading size="md" mb={4} color="orange.600">
+                                            Distribución por Nivel
+                                        </Heading>
+                                        <VStack align="stretch" spacing={3}>
+                                            {['principiante', 'intermedio', 'avanzado'].map(nivel => {
+                                                const count = rutinas.filter(r => 
+                                                    (r.nivel || '').toLowerCase() === nivel
+                                                ).length
+                                                return (
+                                                    <Flex key={nivel} justify="space-between" align="center">
+                                                        <Text textTransform="capitalize">{nivel}:</Text>
+                                                        <Badge 
+                                                            colorScheme={
+                                                                nivel === 'avanzado' ? 'red' : 
+                                                                nivel === 'intermedio' ? 'yellow' : 'green'
+                                                            }
+                                                            fontSize="md"
+                                                        >
+                                                            {count}
+                                                        </Badge>
+                                                    </Flex>
+                                                )
+                                            })}
+                                        </VStack>
+                                    </Box>
+                                </GridItem>
+                            </Grid>
+                        ) : (
+                            <Alert status="warning" borderRadius="lg">
+                                <AlertIcon />
+                                <AlertTitle>Estadísticas no disponibles</AlertTitle>
+                                <AlertDescription>
+                                    No se pudieron cargar las estadísticas en este momento.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                    </TabPanel>
+                </TabPanels>
+            </Tabs>
 
             <Modal isOpen={isOpen} onClose={onClose} size="lg">
                 <ModalOverlay />
@@ -417,7 +829,347 @@ export default function RutinasTab() {
                     </ModalBody>
                     <ModalFooter>
                         <Button variant="ghost" mr={3} onClick={onClose}>Cancelar</Button>
-                        <Button colorScheme="purple" onClick={handleSave}>💾 Guardar</Button>
+                        <Button colorScheme="green" onClick={handleSave}>💾 Guardar</Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+
+            {/* MODAL DETALLE DE RUTINA CON EJERCICIOS */}
+            <Modal isOpen={isDetalleOpen} onClose={onDetalleClose} size="4xl">
+                <ModalOverlay />
+                <ModalContent maxH="90vh">
+                    <ModalHeader bg="green.500" color="white" borderTopRadius="md">
+                        <HStack justify="space-between">
+                            <HStack>
+                                <FiTarget />
+                                <Text>{rutinaDetalle?.nombre || 'Detalle de Rutina'}</Text>
+                            </HStack>
+                            <HStack>
+                                <Tag colorScheme="blue">{rutinaDetalle?.nivel}</Tag>
+                                <Tag colorScheme="purple">{rutinaDetalle?.objetivo}</Tag>
+                            </HStack>
+                        </HStack>
+                    </ModalHeader>
+                    <ModalBody overflowY="auto">
+                        <VStack align="stretch" spacing={6}>
+                            {/* Información General */}
+                            <Box>
+                                <Heading size="sm" mb={3} color="gray.700">Información General</Heading>
+                                <Grid templateColumns="repeat(3, 1fr)" gap={4}>
+                                    <Box p={3} bg="gray.50" borderRadius="md">
+                                        <Text fontSize="sm" color="gray.600">Duración</Text>
+                                        <Text fontWeight="bold" color="green.600">
+                                            <FiClock style={{ display: 'inline', marginRight: '4px' }} />
+                                            {rutinaDetalle?.duracion_estimada || 0} min
+                                        </Text>
+                                    </Box>
+                                    <Box p={3} bg="gray.50" borderRadius="md">
+                                        <Text fontSize="sm" color="gray.600">Frecuencia</Text>
+                                        <Text fontWeight="bold" color="blue.600">
+                                            <FiCalendar style={{ display: 'inline', marginRight: '4px' }} />
+                                            {rutinaDetalle?.frecuencia_semanal || 0} días/semana
+                                        </Text>
+                                    </Box>
+                                    <Box p={3} bg="gray.50" borderRadius="md">
+                                        <Text fontSize="sm" color="gray.600">Tipo</Text>
+                                        <Tag colorScheme={rutinaDetalle?.tipo === 'publica' ? 'blue' : 'purple'}>
+                                            {rutinaDetalle?.tipo}
+                                        </Tag>
+                                    </Box>
+                                </Grid>
+                                {rutinaDetalle?.descripcion && (
+                                    <Box mt={3} p={3} bg="blue.50" borderRadius="md" borderLeft="4px solid" borderColor="blue.400">
+                                        <Text fontSize="sm" color="gray.700">{rutinaDetalle.descripcion}</Text>
+                                    </Box>
+                                )}
+                            </Box>
+
+                            <Divider />
+
+                            {/* Lista de Ejercicios */}
+                            <Box>
+                                <HStack justify="space-between" mb={3}>
+                                    <Heading size="sm" color="gray.700">
+                                        <FiActivity style={{ display: 'inline', marginRight: '8px' }} />
+                                        Ejercicios ({rutinaDetalle?.ejercicios?.length || 0})
+                                    </Heading>
+                                    <Button 
+                                        size="sm" 
+                                        leftIcon={<FiPlus />} 
+                                        colorScheme="green"
+                                        onClick={() => handleAgregarEjercicio(rutinaDetalle)}
+                                    >
+                                        Agregar Ejercicio
+                                    </Button>
+                                </HStack>
+
+                                {rutinaDetalle?.ejercicios && rutinaDetalle.ejercicios.length > 0 ? (
+                                    <Accordion allowMultiple>
+                                        {rutinaDetalle.ejercicios
+                                            .sort((a, b) => (a.orden || 0) - (b.orden || 0))
+                                            .map((ej, idx) => (
+                                            <AccordionItem key={idx} border="1px solid" borderColor="gray.200" mb={2} borderRadius="md">
+                                                <AccordionButton _expanded={{ bg: 'green.50' }}>
+                                                    <Box flex="1" textAlign="left">
+                                                        <HStack>
+                                                            <Badge colorScheme="green">{ej.orden || idx + 1}</Badge>
+                                                            <Text fontWeight="medium">{ej.nombre_ejercicio || ej.nombre || 'Ejercicio'}</Text>
+                                                            <Tag size="sm" colorScheme="blue">
+                                                                {ej.grupo_muscular}
+                                                            </Tag>
+                                                        </HStack>
+                                                    </Box>
+                                                    <HStack>
+                                                        <IconButton
+                                                            icon={<FiEdit />}
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                handleEditarEjercicio(rutinaDetalle, ej)
+                                                            }}
+                                                        />
+                                                        <IconButton
+                                                            icon={<FiTrash2 />}
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            colorScheme="red"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                handleEliminarEjercicio(rutinaDetalle.id, ej.ejercicio_id || ej.id)
+                                                            }}
+                                                        />
+                                                        <AccordionIcon />
+                                                    </HStack>
+                                                </AccordionButton>
+                                                <AccordionPanel pb={4} bg="gray.50">
+                                                    <Grid templateColumns="repeat(4, 1fr)" gap={4}>
+                                                        <Box>
+                                                            <Text fontSize="xs" color="gray.600">Series</Text>
+                                                            <Text fontWeight="bold" color="green.600">{ej.series || '-'}</Text>
+                                                        </Box>
+                                                        <Box>
+                                                            <Text fontSize="xs" color="gray.600">Repeticiones</Text>
+                                                            <Text fontWeight="bold" color="blue.600">{ej.repeticiones || '-'}</Text>
+                                                        </Box>
+                                                        <Box>
+                                                            <Text fontSize="xs" color="gray.600">Descanso</Text>
+                                                            <Text fontWeight="bold" color="orange.600">{ej.descanso_segundos || 0}s</Text>
+                                                        </Box>
+                                                        <Box>
+                                                            <Text fontSize="xs" color="gray.600">Nivel</Text>
+                                                            <Tag size="sm" colorScheme="purple">{ej.nivel}</Tag>
+                                                        </Box>
+                                                    </Grid>
+                                                    {ej.descripcion && (
+                                                        <Box mt={3}>
+                                                            <Text fontSize="xs" color="gray.600" mb={1}>Descripción:</Text>
+                                                            <Text fontSize="sm">{ej.descripcion}</Text>
+                                                        </Box>
+                                                    )}
+                                                    {ej.notas && (
+                                                        <Box mt={2}>
+                                                            <Text fontSize="xs" color="gray.600" mb={1}>Notas:</Text>
+                                                            <Text fontSize="sm" fontStyle="italic" color="gray.600">{ej.notas}</Text>
+                                                        </Box>
+                                                    )}
+                                                </AccordionPanel>
+                                            </AccordionItem>
+                                        ))}
+                                    </Accordion>
+                                ) : (
+                                    <Alert status="info" borderRadius="md">
+                                        <AlertIcon />
+                                        <AlertDescription>
+                                            Esta rutina no tiene ejercicios aún. Agrega ejercicios para completarla.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+                            </Box>
+                        </VStack>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button onClick={onDetalleClose}>Cerrar</Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+
+            {/* MODAL AGREGAR/EDITAR EJERCICIO EN RUTINA */}
+            <Modal isOpen={isEjercicioOpen} onClose={onEjercicioClose} size="lg">
+                <ModalOverlay />
+                <ModalContent>
+                    <ModalHeader>
+                        {selectedEjercicio?.id ? 'Editar Ejercicio' : 'Agregar Ejercicio a Rutina'}
+                    </ModalHeader>
+                    <ModalBody>
+                        <VStack spacing={4} align="stretch">
+                            <FormControl isRequired>
+                                <FormLabel>Ejercicio</FormLabel>
+                                <Select
+                                    value={selectedEjercicio?.ejercicio_id || ''}
+                                    onChange={(e) => setSelectedEjercicio(s => ({ ...s, ejercicio_id: e.target.value }))}
+                                    placeholder="Selecciona un ejercicio"
+                                >
+                                    {ejerciciosDisponibles.map(ej => (
+                                        <option key={ej.id} value={ej.id}>
+                                            {ej.nombre} - {ej.grupo_muscular} ({ej.nivel})
+                                        </option>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            <Grid templateColumns="repeat(2, 1fr)" gap={4}>
+                                <FormControl>
+                                    <FormLabel>Orden</FormLabel>
+                                    <NumberInput
+                                        min={1}
+                                        value={selectedEjercicio?.orden || 1}
+                                        onChange={(val) => setSelectedEjercicio(s => ({ ...s, orden: Number(val) }))}
+                                    >
+                                        <NumberInputField />
+                                    </NumberInput>
+                                </FormControl>
+
+                                <FormControl>
+                                    <FormLabel>Series</FormLabel>
+                                    <NumberInput
+                                        min={1}
+                                        max={10}
+                                        value={selectedEjercicio?.series || 3}
+                                        onChange={(val) => setSelectedEjercicio(s => ({ ...s, series: Number(val) }))}
+                                    >
+                                        <NumberInputField />
+                                    </NumberInput>
+                                </FormControl>
+
+                                <FormControl>
+                                    <FormLabel>Repeticiones</FormLabel>
+                                    <NumberInput
+                                        min={1}
+                                        max={100}
+                                        value={selectedEjercicio?.repeticiones || 10}
+                                        onChange={(val) => setSelectedEjercicio(s => ({ ...s, repeticiones: Number(val) }))}
+                                    >
+                                        <NumberInputField />
+                                    </NumberInput>
+                                </FormControl>
+
+                                <FormControl>
+                                    <FormLabel>Descanso (segundos)</FormLabel>
+                                    <NumberInput
+                                        min={0}
+                                        max={300}
+                                        step={10}
+                                        value={selectedEjercicio?.descanso_segundos || 60}
+                                        onChange={(val) => setSelectedEjercicio(s => ({ ...s, descanso_segundos: Number(val) }))}
+                                    >
+                                        <NumberInputField />
+                                    </NumberInput>
+                                </FormControl>
+                            </Grid>
+
+                            <FormControl>
+                                <FormLabel>Notas (opcional)</FormLabel>
+                                <Textarea
+                                    value={selectedEjercicio?.notas || ''}
+                                    onChange={(e) => setSelectedEjercicio(s => ({ ...s, notas: e.target.value }))}
+                                    placeholder="Indicaciones especiales para este ejercicio..."
+                                    rows={3}
+                                />
+                            </FormControl>
+                        </VStack>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button variant="ghost" mr={3} onClick={onEjercicioClose}>Cancelar</Button>
+                        <Button colorScheme="green" onClick={handleSaveEjercicio}>
+                            💾 Guardar
+                        </Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+
+            {/* MODAL ASIGNAR RUTINA A USUARIO */}
+            <Modal isOpen={isAsignarOpen} onClose={onAsignarClose} size="lg">
+                <ModalOverlay />
+                <ModalContent>
+                    <ModalHeader>
+                        <HStack>
+                            <FiUsers />
+                            <Text>Asignar Rutina a Usuario</Text>
+                        </HStack>
+                    </ModalHeader>
+                    <ModalBody>
+                        <VStack spacing={4} align="stretch">
+                            <Alert status="info" borderRadius="md">
+                                <AlertIcon />
+                                <Box>
+                                    <AlertTitle fontSize="sm">Rutina: {rutinaDetalle?.nombre}</AlertTitle>
+                                    <AlertDescription fontSize="xs">
+                                        {rutinaDetalle?.nivel} • {rutinaDetalle?.objetivo}
+                                    </AlertDescription>
+                                </Box>
+                            </Alert>
+
+                            <FormControl isRequired>
+                                <FormLabel>Usuario</FormLabel>
+                                <Select
+                                    value={selectedUsuario?.usuario_id || ''}
+                                    onChange={(e) => setSelectedUsuario(s => ({ ...s, usuario_id: e.target.value }))}
+                                    placeholder="Selecciona un usuario"
+                                >
+                                    {usuarios.filter(u => u.rol === 'cliente' && u.estado === 'activo').map(u => (
+                                        <option key={u.id} value={u.id}>
+                                            {u.nombre} {u.apellido} - {u.email}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            <HStack>
+                                <FormControl isRequired>
+                                    <FormLabel>Fecha Inicio</FormLabel>
+                                    <Input
+                                        type="date"
+                                        value={selectedUsuario?.fecha_inicio || ''}
+                                        onChange={(e) => setSelectedUsuario(s => ({ ...s, fecha_inicio: e.target.value }))}
+                                    />
+                                </FormControl>
+
+                                <FormControl>
+                                    <FormLabel>Fecha Fin (opcional)</FormLabel>
+                                    <Input
+                                        type="date"
+                                        value={selectedUsuario?.fecha_fin || ''}
+                                        onChange={(e) => setSelectedUsuario(s => ({ ...s, fecha_fin: e.target.value }))}
+                                    />
+                                </FormControl>
+                            </HStack>
+
+                            <FormControl>
+                                <FormLabel>Objetivo Personalizado (opcional)</FormLabel>
+                                <Input
+                                    value={selectedUsuario?.objetivo_personalizado || ''}
+                                    onChange={(e) => setSelectedUsuario(s => ({ ...s, objetivo_personalizado: e.target.value }))}
+                                    placeholder="Ej: Perder 5 kg, ganar masa muscular..."
+                                />
+                            </FormControl>
+
+                            <FormControl>
+                                <FormLabel>Notas (opcional)</FormLabel>
+                                <Textarea
+                                    value={selectedUsuario?.notas || ''}
+                                    onChange={(e) => setSelectedUsuario(s => ({ ...s, notas: e.target.value }))}
+                                    placeholder="Indicaciones especiales, modificaciones, etc..."
+                                    rows={3}
+                                />
+                            </FormControl>
+                        </VStack>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button variant="ghost" mr={3} onClick={onAsignarClose}>Cancelar</Button>
+                        <Button colorScheme="green" leftIcon={<FiCheckCircle />} onClick={handleSaveAsignacion}>
+                            Asignar Rutina
+                        </Button>
                     </ModalFooter>
                 </ModalContent>
             </Modal>

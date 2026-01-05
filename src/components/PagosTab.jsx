@@ -52,7 +52,7 @@ import {
     AlertTitle,
     AlertDescription,
 } from '@chakra-ui/react'
-import { FiPlus, FiSearch, FiEye, FiTrash2, FiDollarSign, FiTrendingUp, FiCreditCard, FiFileText, FiRefreshCw, FiCalendar, FiFilter } from 'react-icons/fi'
+import { FiPlus, FiSearch, FiEye, FiTrash2, FiDollarSign, FiTrendingUp, FiCreditCard, FiFileText, FiRefreshCw, FiCalendar, FiFilter, FiPaperclip, FiEdit3 } from 'react-icons/fi'
 import { useState, useEffect, useMemo } from 'react'
 import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts'
 import { pagosAPI } from '../services/api'
@@ -77,7 +77,10 @@ export default function PagosTab() {
         tipo_pago: 'membresia',
         metodo_pago: 'efectivo',
         estado: 'completado',
-        concepto: ''
+        concepto: '',
+        fecha_vencimiento: '',
+        comprobante: '',
+        notas: ''
     })
     const { isOpen, onOpen, onClose } = useDisclosure()
     const { isOpen: isDetallesOpen, onOpen: onDetallesOpen, onClose: onDetallesClose } = useDisclosure()
@@ -140,6 +143,7 @@ export default function PagosTab() {
             console.log('✅ PAGOS CARGADOS:', pagosData.length)
             console.log('✅ USUARIOS CARGADOS:', usuariosData.length)
             console.log('✅ ESTADÍSTICAS:', estadisticasData)
+            console.log('📋 MUESTRA DE PAGOS:', pagosData.slice(0, 3)) // Ver primeros 3 pagos
             
             setPagos(pagosData)
             setEstadisticas(estadisticasData)
@@ -197,7 +201,10 @@ export default function PagosTab() {
                 tipo_pago: 'membresia',
                 metodo_pago: 'efectivo',
                 estado: 'completado',
-                concepto: ''
+                concepto: '',
+                fecha_vencimiento: '',
+                comprobante: '',
+                notas: ''
             })
             
             // Disparar evento para actualizar dashboard
@@ -322,6 +329,66 @@ export default function PagosTab() {
             otro: 'gray'
         }
         return colores[tipo] || 'gray'
+    }
+
+    const formatearFecha = (fecha) => {
+        if (!fecha || fecha === 'NULL' || fecha === 'null' || fecha === 'N/A') return null
+        
+        try {
+            // Si es un timestamp numérico
+            if (typeof fecha === 'number') {
+                const date = new Date(fecha)
+                const fechaStr = date.toISOString().split('T')[0]
+                // Detectar fechas inválidas (antes de 1900)
+                if (date.getFullYear() < 1900) return null
+                return fechaStr
+            }
+            
+            // Si es una fecha ISO (YYYY-MM-DDTHH:MM:SS)
+            if (typeof fecha === 'string' && fecha.includes('T')) {
+                const fechaStr = fecha.split('T')[0]
+                // Detectar fechas inválidas
+                const año = parseInt(fechaStr.split('-')[0])
+                if (año < 1900) return null
+                return fechaStr
+            }
+            
+            // Si viene en formato DD/MM/YYYY HH:MM (formato del backend)
+            if (typeof fecha === 'string' && fecha.includes('/')) {
+                const partes = fecha.split(' ')[0].split('/') // Separar fecha y hora, tomar solo fecha
+                if (partes.length === 3) {
+                    const [dia, mes, año] = partes
+                    // Detectar fechas inválidas
+                    if (parseInt(año) < 1900) return null
+                    return `${año}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`
+                }
+            }
+            
+            // Si ya está en formato YYYY-MM-DD
+            if (typeof fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+                // Detectar fechas inválidas (como 1899-11-30)
+                const año = parseInt(fecha.split('-')[0])
+                if (año < 1900) return null
+                return fecha
+            }
+            
+            return null
+        } catch (error) {
+            console.error('Error formateando fecha:', error)
+            return null
+        }
+    }
+
+    const formatearMonto = (monto) => {
+        if (!monto && monto !== 0) return '$0'
+        const valor = parseFloat(monto)
+        if (isNaN(valor)) return '$0'
+        return `$${valor.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`
+    }
+
+    const formatearEstado = (estado) => {
+        if (!estado || estado === 'NULL' || estado === 'null') return 'pendiente'
+        return estado.toLowerCase()
     }
 
     if (loading) {
@@ -486,7 +553,7 @@ export default function PagosTab() {
                                                 <Th>Monto</Th>
                                                 <Th>Método</Th>
                                                 <Th>Estado</Th>
-                                                <Th>Fecha</Th>
+                                                <Th>Fecha Pago</Th>
                                                 <Th>Concepto</Th>
                                                 <Th>Acciones</Th>
                                             </Tr>
@@ -501,6 +568,13 @@ export default function PagosTab() {
                                             ) : (
                                                 pagosFiltrados.map((pago) => {
                                                     const usuario = usuarios.find(u => u.id === pago.usuario_id)
+                                                    
+                                                    // Formatear datos
+                                                    const fechaPagoFormateada = formatearFecha(pago.fecha_pago)
+                                                    const fechaVencimientoFormateada = formatearFecha(pago.fecha_vencimiento)
+                                                    const montoFormateado = formatearMonto(pago.monto)
+                                                    const estadoFormateado = formatearEstado(pago.estado)
+                                                    
                                                     return (
                                                         <Tr key={pago.id} _hover={{ bg: 'gray.50' }}>
                                                             <Td fontWeight="bold">#{pago.id}</Td>
@@ -512,25 +586,29 @@ export default function PagosTab() {
                                                             </Td>
                                                             <Td>
                                                                 <Badge colorScheme={getTipoPagoColor(pago.tipo_pago)}>
-                                                                    {pago.tipo_pago}
+                                                                    {pago.tipo_pago || 'N/A'}
                                                                 </Badge>
                                                             </Td>
-                                                            <Td fontWeight="bold" color="green.600">
-                                                                ${parseFloat(pago.monto || 0).toLocaleString('es-CO')}
+                                                            <Td fontWeight="bold" color="green.600" fontSize="md">
+                                                                {montoFormateado}
                                                             </Td>
                                                             <Td>
                                                                 <HStack spacing={1}>
                                                                     <FiCreditCard size={14} />
-                                                                    <Text fontSize="sm">{pago.metodo_pago}</Text>
+                                                                    <Text fontSize="sm">{pago.metodo_pago || 'efectivo'}</Text>
                                                                 </HStack>
                                                             </Td>
                                                             <Td>
-                                                                <Badge colorScheme={getEstadoColor(pago.estado)}>
-                                                                    {pago.estado}
+                                                                <Badge colorScheme={getEstadoColor(estadoFormateado)}>
+                                                                    {estadoFormateado}
                                                                 </Badge>
                                                             </Td>
                                                             <Td>
-                                                                <Text fontSize="sm">{pago.fecha_pago || 'N/A'}</Text>
+                                                                {fechaPagoFormateada ? (
+                                                                    <Text fontSize="sm" fontWeight="medium">{fechaPagoFormateada}</Text>
+                                                                ) : (
+                                                                    <Text fontSize="sm" color="gray.400">-</Text>
+                                                                )}
                                                             </Td>
                                                             <Td maxW="200px">
                                                                 <Text fontSize="sm" noOfLines={2}>
@@ -852,6 +930,44 @@ export default function PagosTab() {
                                     placeholder="Descripción del pago"
                                 />
                             </FormControl>
+
+                            {(nuevoPago.tipo_pago === 'membresia') && (
+                                <FormControl>
+                                    <FormLabel>Fecha de Vencimiento</FormLabel>
+                                    <Input
+                                        type="date"
+                                        value={nuevoPago.fecha_vencimiento}
+                                        onChange={(e) => setNuevoPago({ ...nuevoPago, fecha_vencimiento: e.target.value })}
+                                    />
+                                    <Text fontSize="xs" color="gray.500" mt={1}>
+                                        Solo para membresías - Fecha en que expira la membresía
+                                    </Text>
+                                </FormControl>
+                            )}
+
+                            <FormControl>
+                                <FormLabel>Comprobante</FormLabel>
+                                <Input
+                                    value={nuevoPago.comprobante}
+                                    onChange={(e) => setNuevoPago({ ...nuevoPago, comprobante: e.target.value })}
+                                    placeholder="Número de comprobante o referencia"
+                                />
+                                <Text fontSize="xs" color="gray.500" mt={1}>
+                                    Opcional - Número de transacción, factura o comprobante
+                                </Text>
+                            </FormControl>
+
+                            <FormControl>
+                                <FormLabel>Notas</FormLabel>
+                                <Input
+                                    value={nuevoPago.notas}
+                                    onChange={(e) => setNuevoPago({ ...nuevoPago, notas: e.target.value })}
+                                    placeholder="Observaciones adicionales"
+                                />
+                                <Text fontSize="xs" color="gray.500" mt={1}>
+                                    Opcional - Información adicional sobre el pago
+                                </Text>
+                            </FormControl>
                         </VStack>
                     </ModalBody>
                     <ModalFooter>
@@ -894,22 +1010,22 @@ export default function PagosTab() {
 
                                             <Box>
                                                 <Text fontSize="sm" color="gray.600" fontWeight="bold">Estado</Text>
-                                                <Badge colorScheme={getEstadoColor(pagoSeleccionado.estado)} mt={1} fontSize="md">
-                                                    {pagoSeleccionado.estado?.toUpperCase()}
+                                                <Badge colorScheme={getEstadoColor(formatearEstado(pagoSeleccionado.estado))} mt={1} fontSize="md">
+                                                    {formatearEstado(pagoSeleccionado.estado).toUpperCase()}
                                                 </Badge>
                                             </Box>
 
                                             <Box>
                                                 <Text fontSize="sm" color="gray.600" fontWeight="bold">Monto</Text>
                                                 <Text fontSize="2xl" fontWeight="bold" color="green.600" mt={1}>
-                                                    ${parseFloat(pagoSeleccionado.monto || 0).toLocaleString('es-CO')}
+                                                    {formatearMonto(pagoSeleccionado.monto)}
                                                 </Text>
                                             </Box>
 
                                             <Box>
                                                 <Text fontSize="sm" color="gray.600" fontWeight="bold">Tipo de Pago</Text>
                                                 <Badge colorScheme={getTipoPagoColor(pagoSeleccionado.tipo_pago)} mt={1} fontSize="md">
-                                                    {pagoSeleccionado.tipo_pago?.toUpperCase()}
+                                                    {pagoSeleccionado.tipo_pago?.toUpperCase() || 'N/A'}
                                                 </Badge>
                                             </Box>
 
@@ -925,9 +1041,40 @@ export default function PagosTab() {
                                                 <Text fontSize="sm" color="gray.600" fontWeight="bold">Fecha de Pago</Text>
                                                 <HStack mt={1}>
                                                     <FiCalendar />
-                                                    <Text fontSize="md">{pagoSeleccionado.fecha_pago || 'N/A'}</Text>
+                                                    <Text fontSize="md">
+                                                        {formatearFecha(pagoSeleccionado.fecha_pago) || 'Sin fecha registrada'}
+                                                    </Text>
                                                 </HStack>
                                             </Box>
+
+                                            {formatearFecha(pagoSeleccionado.fecha_vencimiento) && (
+                                                <Box>
+                                                    <Text fontSize="sm" color="gray.600" fontWeight="bold">Fecha de Vencimiento</Text>
+                                                    <HStack mt={1}>
+                                                        <FiCalendar />
+                                                        <Text 
+                                                            fontSize="md"
+                                                            color={new Date(formatearFecha(pagoSeleccionado.fecha_vencimiento)) < new Date() ? 'red.500' : 'green.600'}
+                                                            fontWeight="bold"
+                                                        >
+                                                            {formatearFecha(pagoSeleccionado.fecha_vencimiento)}
+                                                        </Text>
+                                                    </HStack>
+                                                    {new Date(formatearFecha(pagoSeleccionado.fecha_vencimiento)) < new Date() && (
+                                                        <Badge colorScheme="red" mt={1} fontSize="xs">VENCIDO</Badge>
+                                                    )}
+                                                </Box>
+                                            )}
+
+                                            {pagoSeleccionado.comprobante && (
+                                                <Box gridColumn="span 2">
+                                                    <Text fontSize="sm" color="gray.600" fontWeight="bold">Comprobante</Text>
+                                                    <HStack mt={1}>
+                                                        <FiPaperclip />
+                                                        <Text fontSize="md" fontFamily="mono">{pagoSeleccionado.comprobante}</Text>
+                                                    </HStack>
+                                                </Box>
+                                            )}
 
                                             <Box gridColumn="span 2">
                                                 <Text fontSize="sm" color="gray.600" fontWeight="bold">Concepto</Text>
@@ -935,6 +1082,16 @@ export default function PagosTab() {
                                                     {pagoSeleccionado.concepto || pagoSeleccionado.descripcion || 'Sin descripción'}
                                                 </Text>
                                             </Box>
+
+                                            {pagoSeleccionado.notas && (
+                                                <Box gridColumn="span 2">
+                                                    <Text fontSize="sm" color="gray.600" fontWeight="bold">Notas</Text>
+                                                    <HStack mt={1} align="start">
+                                                        <FiEdit3 />
+                                                        <Text fontSize="md">{pagoSeleccionado.notas}</Text>
+                                                    </HStack>
+                                                </Box>
+                                            )}
 
                                             {pagoSeleccionado.created_at && (
                                                 <Box gridColumn="span 2">
