@@ -64,6 +64,7 @@ export default function PagosTab() {
     const [estadisticas, setEstadisticas] = useState(null)
     const [estadisticasMembresias, setEstadisticasMembresias] = useState(null)
     const [usuarios, setUsuarios] = useState([])
+    const [productos, setProductos] = useState([])
     const [loading, setLoading] = useState(true)
     const [busqueda, setBusqueda] = useState('')
     const [filtroEstado, setFiltroEstado] = useState('todos')
@@ -71,6 +72,7 @@ export default function PagosTab() {
     const [filtroMetodo, setFiltroMetodo] = useState('todos')
     const [fechaDesde, setFechaDesde] = useState('')
     const [fechaHasta, setFechaHasta] = useState('')
+    const [aplicandoFiltros, setAplicandoFiltros] = useState(false)
     const [nuevoPago, setNuevoPago] = useState({
         usuario_id: '',
         monto: '',
@@ -80,7 +82,8 @@ export default function PagosTab() {
         concepto: '',
         fecha_vencimiento: '',
         comprobante: '',
-        notas: ''
+        notas: '',
+        producto_id: ''
     })
     const { isOpen, onOpen, onClose } = useDisclosure()
     const { isOpen: isDetallesOpen, onOpen: onDetallesOpen, onClose: onDetallesClose } = useDisclosure()
@@ -139,9 +142,18 @@ export default function PagosTab() {
                     console.error('❌ Error cargando usuarios:', err)
                     return []
                 })
+            
+            // Cargar productos
+            const productosData = await fetch('http://localhost:3001/productos')
+                .then(r => r.ok ? r.json() : [])
+                .catch(err => {
+                    console.error('❌ Error cargando productos:', err)
+                    return []
+                })
 
             console.log('✅ PAGOS CARGADOS:', pagosData.length)
             console.log('✅ USUARIOS CARGADOS:', usuariosData.length)
+            console.log('✅ PRODUCTOS CARGADOS:', productosData.length)
             console.log('✅ ESTADÍSTICAS:', estadisticasData)
             console.log('📋 MUESTRA DE PAGOS:', pagosData.slice(0, 3)) // Ver primeros 3 pagos
             
@@ -149,6 +161,7 @@ export default function PagosTab() {
             setEstadisticas(estadisticasData)
             setEstadisticasMembresias(estadisticasMembresiasData)
             setUsuarios(usuariosData)
+            setProductos(productosData)
             
         } catch (error) {
             console.error('❌ ERROR CARGANDO DATOS:', error)
@@ -204,7 +217,8 @@ export default function PagosTab() {
                 concepto: '',
                 fecha_vencimiento: '',
                 comprobante: '',
-                notas: ''
+                notas: '',
+                producto_id: ''
             })
             
             // Disparar evento para actualizar dashboard
@@ -271,6 +285,18 @@ export default function PagosTab() {
         onDetallesOpen()
     }
 
+    function handleProductoChange(productoId) {
+        const producto = productos.find(p => p.id === parseInt(productoId))
+        if (producto) {
+            setNuevoPago({
+                ...nuevoPago,
+                producto_id: productoId,
+                monto: producto.precio_venta || producto.precio_compra,
+                concepto: `Venta de ${producto.nombre}`
+            })
+        }
+    }
+
     async function handleEliminarPago(id) {
         if (!window.confirm('¿Estás seguro de cancelar este pago?')) return
         
@@ -292,6 +318,26 @@ export default function PagosTab() {
                 duration: 3000
             })
         }
+    }
+
+    async function aplicarFiltrosFecha() {
+        setAplicandoFiltros(true)
+        await cargarDatos()
+        setAplicandoFiltros(false)
+        toast({
+            title: 'Filtros aplicados',
+            status: 'success',
+            duration: 2000
+        })
+    }
+
+    function limpiarFiltros() {
+        setFechaDesde('')
+        setFechaHasta('')
+        setFiltroEstado('todos')
+        setFiltroTipo('todos')
+        setFiltroMetodo('todos')
+        setBusqueda('')
     }
 
     const pagosFiltrados = useMemo(() => {
@@ -380,10 +426,22 @@ export default function PagosTab() {
     }
 
     const formatearMonto = (monto) => {
+        // Manejar valores null, undefined o vacíos
         if (!monto && monto !== 0) return '$0'
-        const valor = parseFloat(monto)
+        
+        // Convertir a string y limpiar caracteres extraños
+        let montoLimpio = String(monto).replace(/[^0-9.-]/g, '')
+        
+        // Convertir a número
+        const valor = parseFloat(montoLimpio)
+        
+        // Validar que sea un número válido
         if (isNaN(valor)) return '$0'
-        return `$${valor.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`
+        
+        // Formatear manualmente para pesos colombianos
+        // Esto asegura que el símbolo $ esté al inicio
+        const montoFormateado = Math.round(valor).toLocaleString('es-CO')
+        return `$${montoFormateado}`
     }
 
     const formatearEstado = (estado) => {
@@ -477,67 +535,127 @@ export default function PagosTab() {
                             {/* Filtros y Búsqueda */}
                             <Card>
                                 <CardBody>
-                                    <SimpleGrid columns={{ base: 1, md: 2, lg: 6 }} spacing={3}>
-                                        <InputGroup>
-                                            <InputLeftElement pointerEvents="none">
-                                                <FiSearch color="gray" />
-                                            </InputLeftElement>
-                                            <Input
-                                                placeholder="Buscar..."
-                                                value={busqueda}
-                                                onChange={(e) => setBusqueda(e.target.value)}
-                                            />
-                                        </InputGroup>
+                                    <VStack spacing={3} align="stretch">
+                                        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={3}>
+                                            <InputGroup>
+                                                <InputLeftElement pointerEvents="none">
+                                                    <FiSearch color="gray" />
+                                                </InputLeftElement>
+                                                <Input
+                                                    placeholder="Buscar cliente o concepto..."
+                                                    value={busqueda}
+                                                    onChange={(e) => setBusqueda(e.target.value)}
+                                                />
+                                            </InputGroup>
 
-                                        <Select
-                                            value={filtroEstado}
-                                            onChange={(e) => setFiltroEstado(e.target.value)}
-                                        >
-                                            <option value="todos">Todos los estados</option>
-                                            <option value="completado">Completado</option>
-                                            <option value="pagado">Pagado</option>
-                                            <option value="pendiente">Pendiente</option>
-                                            <option value="cancelado">Cancelado</option>
-                                        </Select>
+                                            <Select
+                                                value={filtroEstado}
+                                                onChange={(e) => setFiltroEstado(e.target.value)}
+                                            >
+                                                <option value="todos">Todos los estados</option>
+                                                <option value="completado">Completado</option>
+                                                <option value="pagado">Pagado</option>
+                                                <option value="pendiente">Pendiente</option>
+                                                <option value="cancelado">Cancelado</option>
+                                            </Select>
 
-                                        <Select
-                                            value={filtroTipo}
-                                            onChange={(e) => setFiltroTipo(e.target.value)}
-                                        >
-                                            <option value="todos">Todos los tipos</option>
-                                            <option value="membresia">Membresía</option>
-                                            <option value="producto">Producto</option>
-                                            <option value="sesion">Sesión</option>
-                                            <option value="otro">Otro</option>
-                                        </Select>
+                                            <Select
+                                                value={filtroTipo}
+                                                onChange={(e) => setFiltroTipo(e.target.value)}
+                                            >
+                                                <option value="todos">Todos los tipos</option>
+                                                <option value="membresia">Membresía</option>
+                                                <option value="producto">Producto</option>
+                                                <option value="sesion">Sesión</option>
+                                                <option value="otro">Otro</option>
+                                            </Select>
 
-                                        <Select
-                                            value={filtroMetodo}
-                                            onChange={(e) => setFiltroMetodo(e.target.value)}
-                                        >
-                                            <option value="todos">Todos los métodos</option>
-                                            <option value="efectivo">Efectivo</option>
-                                            <option value="tarjeta">Tarjeta</option>
-                                            <option value="transferencia">Transferencia</option>
-                                        </Select>
+                                            <Select
+                                                value={filtroMetodo}
+                                                onChange={(e) => setFiltroMetodo(e.target.value)}
+                                            >
+                                                <option value="todos">Todos los métodos</option>
+                                                <option value="efectivo">Efectivo</option>
+                                                <option value="tarjeta">Tarjeta</option>
+                                                <option value="transferencia">Transferencia</option>
+                                                <option value="nequi">Nequi</option>
+                                                <option value="daviplata">Daviplata</option>
+                                            </Select>
+                                        </SimpleGrid>
 
-                                        <Button
-                                            leftIcon={<FiRefreshCw />}
-                                            onClick={cargarDatos}
-                                            variant="outline"
-                                            colorScheme="blue"
-                                        >
-                                            Actualizar
-                                        </Button>
+                                        <Divider />
 
-                                        <Button
-                                            leftIcon={<FiPlus />}
-                                            colorScheme="green"
-                                            onClick={onOpen}
-                                        >
-                                            Nuevo Pago
-                                        </Button>
-                                    </SimpleGrid>
+                                        <SimpleGrid columns={{ base: 1, md: 2, lg: 5 }} spacing={3}>
+                                            <FormControl>
+                                                <FormLabel fontSize="sm">Fecha Desde</FormLabel>
+                                                <Input
+                                                    type="date"
+                                                    size="sm"
+                                                    value={fechaDesde}
+                                                    onChange={(e) => setFechaDesde(e.target.value)}
+                                                />
+                                            </FormControl>
+
+                                            <FormControl>
+                                                <FormLabel fontSize="sm">Fecha Hasta</FormLabel>
+                                                <Input
+                                                    type="date"
+                                                    size="sm"
+                                                    value={fechaHasta}
+                                                    onChange={(e) => setFechaHasta(e.target.value)}
+                                                />
+                                            </FormControl>
+
+                                            <Button
+                                                leftIcon={<FiFilter />}
+                                                onClick={aplicarFiltrosFecha}
+                                                colorScheme="blue"
+                                                size="sm"
+                                                mt={6}
+                                                isLoading={aplicandoFiltros}
+                                            >
+                                                Aplicar Filtros
+                                            </Button>
+
+                                            <Button
+                                                onClick={limpiarFiltros}
+                                                variant="outline"
+                                                colorScheme="gray"
+                                                size="sm"
+                                                mt={6}
+                                            >
+                                                Limpiar
+                                            </Button>
+
+                                            <Button
+                                                leftIcon={<FiRefreshCw />}
+                                                onClick={cargarDatos}
+                                                variant="outline"
+                                                colorScheme="green"
+                                                size="sm"
+                                                mt={6}
+                                            >
+                                                Actualizar
+                                            </Button>
+                                        </SimpleGrid>
+
+                                        <HStack justifyContent="space-between">
+                                            <Button
+                                                leftIcon={<FiPlus />}
+                                                colorScheme="green"
+                                                onClick={onOpen}
+                                                size="md"
+                                            >
+                                                Nuevo Pago
+                                            </Button>
+                                            
+                                            {(fechaDesde || fechaHasta || filtroEstado !== 'todos' || filtroTipo !== 'todos' || filtroMetodo !== 'todos' || busqueda) && (
+                                                <Badge colorScheme="blue" fontSize="sm" p={2}>
+                                                    Filtros activos
+                                                </Badge>
+                                            )}
+                                        </HStack>
+                                    </VStack>
                                 </CardBody>
                             </Card>
 
@@ -899,7 +1017,15 @@ export default function PagosTab() {
                                 <FormLabel>Tipo de Pago</FormLabel>
                                 <Select
                                     value={nuevoPago.tipo_pago}
-                                    onChange={(e) => setNuevoPago({ ...nuevoPago, tipo_pago: e.target.value })}
+                                    onChange={(e) => {
+                                        setNuevoPago({ 
+                                            ...nuevoPago, 
+                                            tipo_pago: e.target.value,
+                                            producto_id: '',
+                                            monto: '',
+                                            concepto: ''
+                                        })
+                                    }}
                                 >
                                     <option value="membresia">Membresía</option>
                                     <option value="producto">Producto</option>
@@ -907,6 +1033,29 @@ export default function PagosTab() {
                                     <option value="otro">Otro</option>
                                 </Select>
                             </FormControl>
+
+                            {/* Selector de Productos - Solo si tipo_pago es 'producto' */}
+                            {nuevoPago.tipo_pago === 'producto' && (
+                                <FormControl isRequired>
+                                    <FormLabel>Seleccionar Producto</FormLabel>
+                                    <Select
+                                        value={nuevoPago.producto_id}
+                                        onChange={(e) => handleProductoChange(e.target.value)}
+                                        placeholder="Selecciona un producto"
+                                    >
+                                        {productos
+                                            .filter(p => p.estado === 'activo' && p.stock > 0)
+                                            .map(producto => (
+                                                <option key={producto.id} value={producto.id}>
+                                                    {producto.nombre} - ${formatearMonto(producto.precio_venta || producto.precio_compra)} (Stock: {producto.stock})
+                                                </option>
+                                            ))}
+                                    </Select>
+                                    <Text fontSize="xs" color="gray.500" mt={1}>
+                                        El monto se completará automáticamente con el precio del producto
+                                    </Text>
+                                </FormControl>
+                            )}
 
                             <FormControl isRequired>
                                 <FormLabel>Método de Pago</FormLabel>
