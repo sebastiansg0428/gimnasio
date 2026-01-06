@@ -176,6 +176,12 @@ export default function RutinasTab() {
                     setEjerciciosDisponibles(Array.isArray(dataEjercicios) ? dataEjercicios : [])
                     setUsuarios(Array.isArray(dataUsuarios) ? dataUsuarios : [])
                     setEstadisticas(dataEstadisticas)
+                    
+                    // DEBUG: Verificar usuarios cargados
+                    console.log('👥 USUARIOS CARGADOS:', dataUsuarios)
+                    console.log('👥 Total usuarios:', dataUsuarios?.length || 0)
+                    console.log('👥 Primer usuario (estructura):', dataUsuarios?.[0])
+                    console.log('👥 Usuarios activos:', dataUsuarios?.filter(u => u.estado === 'activo')?.length || 0)
                 }
             } catch (err) {
                 console.error('Error cargando datos', err)
@@ -1088,88 +1094,175 @@ export default function RutinasTab() {
                 </ModalContent>
             </Modal>
 
-            {/* MODAL ASIGNAR RUTINA A USUARIO */}
-            <Modal isOpen={isAsignarOpen} onClose={onAsignarClose} size="lg">
-                <ModalOverlay />
+            {/* MODAL ASIGNAR RUTINA A USUARIO - MEJORADO */}
+            <Modal isOpen={isAsignarOpen} onClose={onAsignarClose} size="xl">
+                <ModalOverlay backdropFilter="blur(4px)" />
                 <ModalContent>
-                    <ModalHeader>
-                        <HStack>
-                            <FiUsers />
-                            <Text>Asignar Rutina a Usuario</Text>
+                    <ModalHeader bg="blue.500" color="white" borderTopRadius="md">
+                        <HStack spacing={3}>
+                            <Box bg="white" p={2} borderRadius="md">
+                                <FiUsers size={24} color="#3182CE" />
+                            </Box>
+                            <VStack align="start" spacing={0}>
+                                <Text fontSize="xl" fontWeight="bold">Asignar Rutina a Usuario</Text>
+                                <Text fontSize="sm" fontWeight="normal" opacity={0.9}>
+                                    Asigna esta rutina a uno de tus clientes
+                                </Text>
+                            </VStack>
                         </HStack>
                     </ModalHeader>
-                    <ModalBody>
-                        <VStack spacing={4} align="stretch">
-                            <Alert status="info" borderRadius="md">
+                    <ModalBody py={6}>
+                        <VStack spacing={5} align="stretch">
+                            <Alert status="info" borderRadius="md" variant="left-accent">
                                 <AlertIcon />
-                                <Box>
-                                    <AlertTitle fontSize="sm">Rutina: {rutinaDetalle?.nombre}</AlertTitle>
-                                    <AlertDescription fontSize="xs">
-                                        {rutinaDetalle?.nivel} • {rutinaDetalle?.objetivo}
+                                <Box flex="1">
+                                    <AlertTitle fontSize="md" mb={1}>📋 {rutinaDetalle?.nombre}</AlertTitle>
+                                    <AlertDescription fontSize="sm">
+                                        <HStack spacing={3} flexWrap="wrap">
+                                            <Badge colorScheme="orange">{rutinaDetalle?.nivel}</Badge>
+                                            <Badge colorScheme="purple">{rutinaDetalle?.objetivo}</Badge>
+                                            {rutinaDetalle?.duracion_semanas && (
+                                                <Badge colorScheme="blue">{rutinaDetalle.duracion_semanas} semanas</Badge>
+                                            )}
+                                            {rutinaDetalle?.frecuencia_por_semana && (
+                                                <Badge colorScheme="green">{rutinaDetalle.frecuencia_por_semana}x/semana</Badge>
+                                            )}
+                                        </HStack>
                                     </AlertDescription>
                                 </Box>
                             </Alert>
 
+                            <Divider />
+
                             <FormControl isRequired>
-                                <FormLabel>Usuario</FormLabel>
+                                <FormLabel fontWeight="bold" mb={3}>
+                                    <HStack>
+                                        <Text>👤 Seleccionar Cliente</Text>
+                                        <Badge colorScheme="red" fontSize="xs">Requerido</Badge>
+                                    </HStack>
+                                </FormLabel>
                                 <Select
                                     value={selectedUsuario?.usuario_id || ''}
-                                    onChange={(e) => setSelectedUsuario(s => ({ ...s, usuario_id: e.target.value }))}
-                                    placeholder="Selecciona un usuario"
+                                    onChange={(e) => {
+                                        console.log('Cliente seleccionado:', e.target.value)
+                                        setSelectedUsuario(s => ({ ...s, usuario_id: e.target.value }))
+                                    }}
+                                    placeholder="Selecciona un cliente registrado"
+                                    size="lg"
+                                    bg="blue.50"
+                                    borderColor="blue.200"
                                 >
-                                    {usuarios.filter(u => u.rol === 'cliente' && u.estado === 'activo').map(u => (
-                                        <option key={u.id} value={u.id}>
-                                            {u.nombre} {u.apellido} - {u.email}
-                                        </option>
-                                    ))}
+                                    {usuarios.length > 0 ? (
+                                        usuarios
+                                            .filter(u => u.estado === 'activo')
+                                            .map(u => (
+                                                <option key={u.id} value={u.id}>
+                                                    {u.nombre} {u.apellido} • {u.email} {u.telefono ? `• ${u.telefono}` : ''}
+                                                </option>
+                                            ))
+                                    ) : (
+                                        <option disabled>No hay usuarios disponibles</option>
+                                    )}
                                 </Select>
+                                <Text fontSize="xs" color="gray.600" mt={2}>
+                                    {usuarios.filter(u => u.estado === 'activo').length} usuarios activos disponibles
+                                </Text>
+                                {usuarios.length === 0 && (
+                                    <Alert status="warning" mt={2} fontSize="sm">
+                                        <AlertIcon />
+                                        No se encontraron usuarios. Verifica que existan usuarios registrados.
+                                    </Alert>
+                                )}
                             </FormControl>
 
-                            <HStack>
-                                <FormControl isRequired>
-                                    <FormLabel>Fecha Inicio</FormLabel>
+                            <Divider />
+
+                            <Text fontWeight="bold" color="gray.700" fontSize="sm">
+                                📅 Período de la Rutina
+                            </Text>
+
+                            <HStack spacing={4}>
+                                <FormControl isRequired flex={1}>
+                                    <FormLabel fontSize="sm" fontWeight="semibold">
+                                        Fecha Inicio
+                                    </FormLabel>
                                     <Input
                                         type="date"
                                         value={selectedUsuario?.fecha_inicio || ''}
                                         onChange={(e) => setSelectedUsuario(s => ({ ...s, fecha_inicio: e.target.value }))}
+                                        size="lg"
+                                        bg="gray.50"
                                     />
                                 </FormControl>
 
-                                <FormControl>
-                                    <FormLabel>Fecha Fin (opcional)</FormLabel>
+                                <FormControl flex={1}>
+                                    <FormLabel fontSize="sm" fontWeight="semibold">
+                                        Fecha Fin <Badge colorScheme="gray" ml={1}>Opcional</Badge>
+                                    </FormLabel>
                                     <Input
                                         type="date"
                                         value={selectedUsuario?.fecha_fin || ''}
                                         onChange={(e) => setSelectedUsuario(s => ({ ...s, fecha_fin: e.target.value }))}
+                                        size="lg"
+                                        bg="gray.50"
                                     />
                                 </FormControl>
                             </HStack>
 
+                            <Divider />
+
+                            <Text fontWeight="bold" color="gray.700" fontSize="sm">
+                                📝 Personalización (Opcional)
+                            </Text>
+
                             <FormControl>
-                                <FormLabel>Objetivo Personalizado (opcional)</FormLabel>
+                                <FormLabel fontSize="sm" fontWeight="semibold">
+                                    🎯 Objetivo Personalizado
+                                </FormLabel>
                                 <Input
                                     value={selectedUsuario?.objetivo_personalizado || ''}
                                     onChange={(e) => setSelectedUsuario(s => ({ ...s, objetivo_personalizado: e.target.value }))}
                                     placeholder="Ej: Perder 5 kg, ganar masa muscular..."
+                                    size="lg"
+                                    bg="gray.50"
                                 />
                             </FormControl>
 
                             <FormControl>
-                                <FormLabel>Notas (opcional)</FormLabel>
+                                <FormLabel fontSize="sm" fontWeight="semibold">
+                                    📋 Notas e Indicaciones
+                                </FormLabel>
                                 <Textarea
                                     value={selectedUsuario?.notas || ''}
                                     onChange={(e) => setSelectedUsuario(s => ({ ...s, notas: e.target.value }))}
-                                    placeholder="Indicaciones especiales, modificaciones, etc..."
+                                    placeholder="Indicaciones especiales, modificaciones, restricciones médicas, etc..."
                                     rows={3}
+                                    bg="gray.50"
+                                    size="lg"
                                 />
                             </FormControl>
                         </VStack>
                     </ModalBody>
-                    <ModalFooter>
-                        <Button variant="ghost" mr={3} onClick={onAsignarClose}>Cancelar</Button>
-                        <Button colorScheme="green" leftIcon={<FiCheckCircle />} onClick={handleSaveAsignacion}>
-                            Asignar Rutina
-                        </Button>
+                    <ModalFooter bg="gray.50" borderBottomRadius="md">
+                        <HStack spacing={3}>
+                            <Button 
+                                variant="ghost" 
+                                onClick={onAsignarClose}
+                                size="lg"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button 
+                                colorScheme="blue" 
+                                leftIcon={<FiCheckCircle />} 
+                                onClick={handleSaveAsignacion}
+                                size="lg"
+                                px={8}
+                                isDisabled={!selectedUsuario?.usuario_id || !selectedUsuario?.fecha_inicio}
+                            >
+                                Asignar Rutina
+                            </Button>
+                        </HStack>
                     </ModalFooter>
                 </ModalContent>
             </Modal>

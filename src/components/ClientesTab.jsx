@@ -55,8 +55,13 @@ import {
     NumberInputStepper,
     NumberIncrementStepper,
     NumberDecrementStepper,
+    Alert,
+    AlertIcon,
+    AlertTitle,
+    AlertDescription,
+    Heading,
 } from '@chakra-ui/react'
-import { FiMoreVertical, FiSearch, FiUser, FiUserPlus, FiX, FiRefreshCw, FiCheckCircle, FiAlertCircle, FiClock, FiDollarSign } from 'react-icons/fi'
+import { FiMoreVertical, FiSearch, FiUser, FiUserPlus, FiX, FiRefreshCw, FiCheckCircle, FiAlertCircle, FiClock, FiDollarSign, FiActivity } from 'react-icons/fi'
 
 // Función helper para formatear fechas
 const formatearFecha = (fecha) => {
@@ -85,7 +90,7 @@ const formatearFecha = (fecha) => {
     }
 }
 
-// Función helper para formatear género
+// Funcion helper para formatear genero
 const formatearGenero = (genero) => {
     if (!genero) return '-'
     const generoUpper = genero.toUpperCase()
@@ -94,7 +99,7 @@ const formatearGenero = (genero) => {
     return 'Otro'
 }
 
-// Función helper para obtener color del badge de género
+// Funcion helper para obtener color del badge de genero
 const getGeneroColor = (genero) => {
     if (!genero) return 'gray'
     const generoUpper = genero.toUpperCase()
@@ -103,18 +108,21 @@ const getGeneroColor = (genero) => {
     return 'gray'
 }
 
-// Función helper para calcular días hasta vencimiento
+// Funcion helper para calcular dias hasta vencimiento
 const calcularDiasVencimiento = (fechaVencimiento) => {
-    if (!fechaVencimiento || fechaVencimiento === '-') return null
+    if (!fechaVencimiento || fechaVencimiento === '-' || typeof fechaVencimiento !== 'string') return null
     try {
         // Parsear fecha en formato DD/MM/YYYY
         let fecha
         if (fechaVencimiento.includes('/')) {
-            const [dia, mes, año] = fechaVencimiento.split('/')
-            fecha = new Date(año, mes - 1, dia)
+            const [dia, mes, anio] = fechaVencimiento.split('/')
+            fecha = new Date(anio, mes - 1, dia)
         } else {
             fecha = new Date(fechaVencimiento)
         }
+        
+        if (isNaN(fecha.getTime())) return null
+        
         const hoy = new Date()
         hoy.setHours(0, 0, 0, 0)
         const diferencia = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24))
@@ -124,14 +132,14 @@ const calcularDiasVencimiento = (fechaVencimiento) => {
     }
 }
 
-// Función helper para obtener estado de membresía
+// Funcion helper para obtener estado de membresia
 const getEstadoMembresia = (fechaVencimiento) => {
     const dias = calcularDiasVencimiento(fechaVencimiento)
     if (dias === null) return { estado: 'sin-fecha', color: 'gray', texto: 'Sin fecha' }
     if (dias < 0) return { estado: 'vencida', color: 'red', texto: 'Vencida' }
-    if (dias <= 7) return { estado: 'por-vencer', color: 'orange', texto: `Vence en ${dias}d` }
-    if (dias <= 15) return { estado: 'proximo', color: 'yellow', texto: `${dias} días` }
-    return { estado: 'activa', color: 'green', texto: `${dias} días` }
+    if (dias <= 7) return { estado: 'por-vencer', color: 'orange', texto: 'Vence en ' + dias + 'd' }
+    if (dias <= 15) return { estado: 'proximo', color: 'yellow', texto: dias + ' dias' }
+    return { estado: 'activa', color: 'green', texto: dias + ' dias' }
 }
 
 // Lista inicial vacía: mostrar solo usuarios provenientes del backend
@@ -194,6 +202,7 @@ export default function ClientesTab() {
     const [rutinasDisponibles, setRutinasDisponibles] = useState([])
     const [selectedClienteForAssign, setSelectedClienteForAssign] = useState(null)
     const [selectedClienteForEdit, setSelectedClienteForEdit] = useState(null)
+    const [selectedClienteForDetails, setSelectedClienteForDetails] = useState(null)
     const [editData, setEditData] = useState({
         nombre: '',
         apellido: '',
@@ -228,6 +237,7 @@ export default function ClientesTab() {
     }
 
     const openDetailsModal = async (cliente) => {
+        setSelectedClienteForDetails(cliente)
         try {
             const data = await getRutinasUsuario(cliente.id)
             setAssignedRutinas(Array.isArray(data) ? data : [])
@@ -238,7 +248,10 @@ export default function ClientesTab() {
         setIsDetailsOpen(true)
     }
 
-    const closeDetailsModal = () => setIsDetailsOpen(false)
+    const closeDetailsModal = () => {
+        setIsDetailsOpen(false)
+        setSelectedClienteForDetails(null)
+    }
 
     const openEditModal = (cliente) => {
         setSelectedClienteForEdit(cliente)
@@ -1286,36 +1299,181 @@ export default function ClientesTab() {
             </ModalContent>
         </Modal>
 
-        {/* Modal Detalles: rutinas asignadas */}
-        <Modal isOpen={isDetailsOpen} onClose={closeDetailsModal} size="lg">
-            <ModalOverlay />
+        {/* Modal Detalles: rutinas asignadas - MEJORADO */}
+        <Modal isOpen={isDetailsOpen} onClose={closeDetailsModal} size="xl">
+            <ModalOverlay backdropFilter="blur(4px)" />
             <ModalContent>
-                <ModalHeader>Rutinas asignadas</ModalHeader>
-                <ModalCloseButton />
-                <ModalBody>
-                    {assignedRutinas.length === 0 ? (
-                        <Text>No hay rutinas asignadas.</Text>
-                    ) : (
-                        <Box>
-                            <Table variant="simple">
-                                <Thead>
-                                    <Tr><Th>Nombre</Th><Th>Objetivo</Th><Th>Duración (sem)</Th></Tr>
-                                </Thead>
-                                <Tbody>
-                                    {assignedRutinas.map(rt => (
-                                        <Tr key={rt.id || rt._id}>
-                                            <Td>{rt.nombre ?? rt.name}</Td>
-                                            <Td>{rt.objetivo ?? '-'}</Td>
-                                            <Td>{rt.duracion_semanas ?? rt.duracionSemanas ?? '-'}</Td>
-                                        </Tr>
-                                    ))}
-                                </Tbody>
-                            </Table>
+                <ModalHeader bg="purple.500" color="white" borderTopRadius="md">
+                    <HStack spacing={3}>
+                        <Box bg="white" p={2} borderRadius="md">
+                            <FiActivity size={24} color="#805AD5" />
                         </Box>
+                        <VStack align="start" spacing={0}>
+                            <Text fontSize="xl" fontWeight="bold">Rutinas Asignadas</Text>
+                            <Text fontSize="sm" fontWeight="normal" opacity={0.9}>
+                                {selectedClienteForDetails?.nombre} {selectedClienteForDetails?.apellido}
+                            </Text>
+                        </VStack>
+                    </HStack>
+                </ModalHeader>
+                <ModalCloseButton color="white" />
+                <ModalBody py={6}>
+                    {assignedRutinas.length === 0 ? (
+                        <Alert status="info" borderRadius="md">
+                            <AlertIcon />
+                            <Box>
+                                <AlertTitle>Sin rutinas asignadas</AlertTitle>
+                                <AlertDescription>
+                                    Este cliente aún no tiene rutinas asignadas. Ve a la sección de Rutinas para asignarle una.
+                                </AlertDescription>
+                            </Box>
+                        </Alert>
+                    ) : (
+                        <VStack spacing={4} align="stretch">
+                            {assignedRutinas.map((rt, index) => (
+                                <Box 
+                                    key={rt.id || rt._id || index}
+                                    p={4}
+                                    borderWidth="1px"
+                                    borderRadius="lg"
+                                    borderColor="purple.200"
+                                    bg="purple.50"
+                                    _hover={{ shadow: 'md' }}
+                                >
+                                    <VStack align="stretch" spacing={3}>
+                                        {/* Nombre de la Rutina */}
+                                        <HStack justify="space-between">
+                                            <Heading size="md" color="purple.700">
+                                                🏋️ {rt.nombre ?? rt.name ?? 'Sin nombre'}
+                                            </Heading>
+                                            <Badge colorScheme="purple" fontSize="md" px={3} py={1}>
+                                                {rt.nivel ?? 'N/A'}
+                                            </Badge>
+                                        </HStack>
+
+                                        <Divider />
+
+                                        {/* Información de la Rutina */}
+                                        <SimpleGrid columns={2} spacing={3}>
+                                            <Box>
+                                                <Text fontSize="xs" color="gray.600" fontWeight="bold">🎯 Objetivo</Text>
+                                                <Text fontSize="sm" mt={1}>{rt.objetivo ?? '-'}</Text>
+                                            </Box>
+                                            <Box>
+                                                <Text fontSize="xs" color="gray.600" fontWeight="bold">⏱️ Duración</Text>
+                                                <Text fontSize="sm" mt={1}>
+                                                    {rt.duracion_semanas ?? rt.duracionSemanas ?? '-'} semanas
+                                                </Text>
+                                            </Box>
+                                        </SimpleGrid>
+
+                                        {/* FECHAS DE ASIGNACIÓN */}
+                                        {(rt.fecha_inicio || rt.fecha_fin) && (
+                                            <>
+                                                <Divider />
+                                                <Box>
+                                                    <Text fontSize="xs" color="gray.600" fontWeight="bold" mb={2}>
+                                                        📅 Período de Asignación
+                                                    </Text>
+                                                    <SimpleGrid columns={2} spacing={3}>
+                                                        {rt.fecha_inicio && (
+                                                            <Box>
+                                                                <HStack spacing={2}>
+                                                                    <Badge colorScheme="green">Inicio</Badge>
+                                                                    <Text fontSize="sm" fontWeight="semibold">
+                                                                        {new Date(rt.fecha_inicio).toLocaleDateString('es-ES')}
+                                                                    </Text>
+                                                                </HStack>
+                                                            </Box>
+                                                        )}
+                                                        {rt.fecha_fin && (
+                                                            <Box>
+                                                                <HStack spacing={2}>
+                                                                    <Badge colorScheme="red">Fin</Badge>
+                                                                    <Text fontSize="sm" fontWeight="semibold">
+                                                                        {new Date(rt.fecha_fin).toLocaleDateString('es-ES')}
+                                                                    </Text>
+                                                                </HStack>
+                                                            </Box>
+                                                        )}
+                                                    </SimpleGrid>
+
+                                                    {/* Calcular días restantes */}
+                                                    {rt.fecha_fin && (
+                                                        <Box mt={2}>
+                                                            {(() => {
+                                                                const hoy = new Date()
+                                                                const fin = new Date(rt.fecha_fin)
+                                                                const diffTime = fin - hoy
+                                                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+                                                                
+                                                                if (diffDays < 0) {
+                                                                    return (
+                                                                        <Badge colorScheme="red" fontSize="sm">
+                                                                            ⚠️ Rutina finalizada hace {Math.abs(diffDays)} días
+                                                                        </Badge>
+                                                                    )
+                                                                } else if (diffDays === 0) {
+                                                                    return (
+                                                                        <Badge colorScheme="orange" fontSize="sm">
+                                                                            ⏰ Finaliza hoy
+                                                                        </Badge>
+                                                                    )
+                                                                } else if (diffDays <= 7) {
+                                                                    return (
+                                                                        <Badge colorScheme="yellow" fontSize="sm">
+                                                                            ⚠️ Quedan {diffDays} días
+                                                                        </Badge>
+                                                                    )
+                                                                } else {
+                                                                    return (
+                                                                        <Badge colorScheme="green" fontSize="sm">
+                                                                            ✅ Quedan {diffDays} días
+                                                                        </Badge>
+                                                                    )
+                                                                }
+                                                            })()}
+                                                        </Box>
+                                                    )}
+                                                </Box>
+                                            </>
+                                        )}
+
+                                        {/* Objetivo Personalizado */}
+                                        {rt.objetivo_personalizado && (
+                                            <>
+                                                <Divider />
+                                                <Box>
+                                                    <Text fontSize="xs" color="gray.600" fontWeight="bold">🎯 Objetivo Personalizado</Text>
+                                                    <Text fontSize="sm" mt={1} fontStyle="italic">
+                                                        "{rt.objetivo_personalizado}"
+                                                    </Text>
+                                                </Box>
+                                            </>
+                                        )}
+
+                                        {/* Notas */}
+                                        {rt.notas && (
+                                            <>
+                                                <Divider />
+                                                <Box>
+                                                    <Text fontSize="xs" color="gray.600" fontWeight="bold">📝 Notas e Indicaciones</Text>
+                                                    <Text fontSize="sm" mt={1}>
+                                                        {rt.notas}
+                                                    </Text>
+                                                </Box>
+                                            </>
+                                        )}
+                                    </VStack>
+                                </Box>
+                            ))}
+                        </VStack>
                     )}
                 </ModalBody>
-                <ModalFooter>
-                    <Button onClick={closeDetailsModal}>Cerrar</Button>
+                <ModalFooter bg="gray.50" borderBottomRadius="md">
+                    <Button onClick={closeDetailsModal} size="lg" colorScheme="purple">
+                        Cerrar
+                    </Button>
                 </ModalFooter>
             </ModalContent>
         </Modal>

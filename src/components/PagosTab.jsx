@@ -979,20 +979,42 @@ export default function PagosTab() {
                 </TabPanels>
             </Tabs>
 
-            {/* Modal Nuevo Pago */}
-            <Modal isOpen={isOpen} onClose={onClose} size="lg">
-                <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>💰 Registrar Nuevo Pago</ModalHeader>
-                    <ModalCloseButton />
-                    <ModalBody>
-                        <VStack spacing={4}>
+            {/* Modal Nuevo Pago - MEJORADO */}
+            <Modal isOpen={isOpen} onClose={onClose} size="xl">
+                <ModalOverlay backdropFilter="blur(4px)" />
+                <ModalContent maxW="600px">
+                    <ModalHeader bg="green.500" color="white" borderTopRadius="md">
+                        <HStack spacing={3}>
+                            <Box bg="white" p={2} borderRadius="md">
+                                <FiDollarSign size={24} color="#38A169" />
+                            </Box>
+                            <VStack align="start" spacing={0}>
+                                <Text fontSize="xl" fontWeight="bold">Registrar Nuevo Pago</Text>
+                                <Text fontSize="sm" fontWeight="normal" opacity={0.9}>
+                                    Complete los datos del pago
+                                </Text>
+                            </VStack>
+                        </HStack>
+                    </ModalHeader>
+                    <ModalCloseButton color="white" />
+                    
+                    <ModalBody py={6}>
+                        <VStack spacing={5} align="stretch">
+                            {/* Cliente */}
                             <FormControl isRequired>
-                                <FormLabel>Usuario</FormLabel>
+                                <FormLabel fontWeight="bold" mb={2}>
+                                    <HStack>
+                                        <Text>👤 Cliente</Text>
+                                        <Badge colorScheme="red" fontSize="xs">Requerido</Badge>
+                                    </HStack>
+                                </FormLabel>
                                 <Select
                                     value={nuevoPago.usuario_id}
                                     onChange={(e) => setNuevoPago({ ...nuevoPago, usuario_id: e.target.value })}
                                     placeholder="Selecciona un usuario"
+                                    size="lg"
+                                    bg="gray.50"
+                                    _hover={{ bg: 'gray.100' }}
                                 >
                                     {usuarios.map(u => (
                                         <option key={u.id} value={u.id}>
@@ -1002,130 +1024,231 @@ export default function PagosTab() {
                                 </Select>
                             </FormControl>
 
-                            <FormControl isRequired>
-                                <FormLabel>Monto</FormLabel>
-                                <NumberInput
-                                    value={nuevoPago.monto}
-                                    onChange={(value) => setNuevoPago({ ...nuevoPago, monto: value })}
-                                    min={0}
-                                >
-                                    <NumberInputField placeholder="Ingrese el monto" />
-                                </NumberInput>
-                            </FormControl>
+                            <Divider />
 
+                            {/* Tipo de Pago */}
                             <FormControl isRequired>
-                                <FormLabel>Tipo de Pago</FormLabel>
-                                <Select
-                                    value={nuevoPago.tipo_pago}
-                                    onChange={(e) => {
-                                        setNuevoPago({ 
-                                            ...nuevoPago, 
-                                            tipo_pago: e.target.value,
-                                            producto_id: '',
-                                            monto: '',
-                                            concepto: ''
-                                        })
-                                    }}
-                                >
-                                    <option value="membresia">Membresía</option>
-                                    <option value="producto">Producto</option>
-                                    <option value="sesion">Sesión</option>
-                                    <option value="otro">Otro</option>
-                                </Select>
+                                <FormLabel fontWeight="bold" mb={2}>
+                                    <HStack>
+                                        <Text>📋 Tipo de Pago</Text>
+                                        <Badge colorScheme="red" fontSize="xs">Requerido</Badge>
+                                    </HStack>
+                                </FormLabel>
+                                <SimpleGrid columns={2} spacing={3}>
+                                    <Button
+                                        h="60px"
+                                        onClick={() => setNuevoPago({ ...nuevoPago, tipo_pago: 'membresia', producto_id: '', monto: '', concepto: '' })}
+                                        variant={nuevoPago.tipo_pago === 'membresia' ? 'solid' : 'outline'}
+                                        colorScheme={nuevoPago.tipo_pago === 'membresia' ? 'purple' : 'gray'}
+                                        leftIcon={<Text fontSize="2xl">🏋️</Text>}
+                                    >
+                                        Membresía
+                                    </Button>
+                                    <Button
+                                        h="60px"
+                                        onClick={() => setNuevoPago({ ...nuevoPago, tipo_pago: 'producto', producto_id: '', monto: '', concepto: '' })}
+                                        variant={nuevoPago.tipo_pago === 'producto' ? 'solid' : 'outline'}
+                                        colorScheme={nuevoPago.tipo_pago === 'producto' ? 'blue' : 'gray'}
+                                        leftIcon={<Text fontSize="2xl">🛒</Text>}
+                                    >
+                                        Producto
+                                    </Button>
+                                    <Button
+                                        h="60px"
+                                        onClick={() => setNuevoPago({ ...nuevoPago, tipo_pago: 'sesion', producto_id: '', monto: '', concepto: '' })}
+                                        variant={nuevoPago.tipo_pago === 'sesion' ? 'solid' : 'outline'}
+                                        colorScheme={nuevoPago.tipo_pago === 'sesion' ? 'orange' : 'gray'}
+                                        leftIcon={<Text fontSize="2xl">💪</Text>}
+                                    >
+                                        Sesión
+                                    </Button>
+                                    <Button
+                                        h="60px"
+                                        onClick={() => setNuevoPago({ ...nuevoPago, tipo_pago: 'otro', producto_id: '', monto: '', concepto: '' })}
+                                        variant={nuevoPago.tipo_pago === 'otro' ? 'solid' : 'outline'}
+                                        colorScheme={nuevoPago.tipo_pago === 'otro' ? 'gray' : 'gray'}
+                                        leftIcon={<Text fontSize="2xl">📦</Text>}
+                                    >
+                                        Otro
+                                    </Button>
+                                </SimpleGrid>
                             </FormControl>
 
                             {/* Selector de Productos - Solo si tipo_pago es 'producto' */}
                             {nuevoPago.tipo_pago === 'producto' && (
                                 <FormControl isRequired>
-                                    <FormLabel>Seleccionar Producto</FormLabel>
+                                    <FormLabel fontWeight="bold" mb={2}>
+                                        <HStack>
+                                            <Text>🛍️ Seleccionar Producto</Text>
+                                            <Badge colorScheme="red" fontSize="xs">Requerido</Badge>
+                                        </HStack>
+                                    </FormLabel>
                                     <Select
                                         value={nuevoPago.producto_id}
                                         onChange={(e) => handleProductoChange(e.target.value)}
                                         placeholder="Selecciona un producto"
+                                        size="lg"
+                                        bg="blue.50"
+                                        borderColor="blue.200"
                                     >
                                         {productos
                                             .filter(p => p.estado === 'activo' && p.stock > 0)
                                             .map(producto => (
                                                 <option key={producto.id} value={producto.id}>
-                                                    {producto.nombre} - ${formatearMonto(producto.precio_venta || producto.precio_compra)} (Stock: {producto.stock})
+                                                    {producto.nombre} - {formatearMonto(producto.precio_venta || producto.precio_compra)} (Stock: {producto.stock})
                                                 </option>
                                             ))}
                                     </Select>
-                                    <Text fontSize="xs" color="gray.500" mt={1}>
-                                        El monto se completará automáticamente con el precio del producto
-                                    </Text>
+                                    <Alert status="info" mt={2} borderRadius="md" fontSize="sm">
+                                        <AlertIcon />
+                                        El monto y concepto se completarán automáticamente
+                                    </Alert>
                                 </FormControl>
                             )}
 
-                            <FormControl isRequired>
-                                <FormLabel>Método de Pago</FormLabel>
-                                <Select
-                                    value={nuevoPago.metodo_pago}
-                                    onChange={(e) => setNuevoPago({ ...nuevoPago, metodo_pago: e.target.value })}
-                                >
-                                    <option value="efectivo">Efectivo</option>
-                                    <option value="tarjeta">Tarjeta</option>
-                                    <option value="transferencia">Transferencia</option>
-                                    <option value="nequi">Nequi</option>
-                                    <option value="daviplata">Daviplata</option>
-                                </Select>
-                            </FormControl>
+                            <Divider />
 
+                            {/* Monto y Método */}
+                            <SimpleGrid columns={2} spacing={4}>
+                                <FormControl isRequired>
+                                    <FormLabel fontWeight="bold" mb={2}>
+                                        <HStack>
+                                            <Text>💵 Monto</Text>
+                                            <Badge colorScheme="red" fontSize="xs">Requerido</Badge>
+                                        </HStack>
+                                    </FormLabel>
+                                    <InputGroup size="lg">
+                                        <InputLeftElement pointerEvents="none" color="gray.500">
+                                            <Text fontWeight="bold">$</Text>
+                                        </InputLeftElement>
+                                        <Input
+                                            type="number"
+                                            value={nuevoPago.monto}
+                                            onChange={(e) => setNuevoPago({ ...nuevoPago, monto: e.target.value })}
+                                            placeholder="0"
+                                            bg="gray.50"
+                                            fontWeight="bold"
+                                            fontSize="lg"
+                                        />
+                                    </InputGroup>
+                                </FormControl>
+
+                                <FormControl isRequired>
+                                    <FormLabel fontWeight="bold" mb={2}>
+                                        <HStack>
+                                            <Text>💳 Método de Pago</Text>
+                                            <Badge colorScheme="red" fontSize="xs">Requerido</Badge>
+                                        </HStack>
+                                    </FormLabel>
+                                    <Select
+                                        value={nuevoPago.metodo_pago}
+                                        onChange={(e) => setNuevoPago({ ...nuevoPago, metodo_pago: e.target.value })}
+                                        size="lg"
+                                        bg="gray.50"
+                                    >
+                                        <option value="efectivo">💵 Efectivo</option>
+                                        <option value="tarjeta">💳 Tarjeta</option>
+                                        <option value="transferencia">🏦 Transferencia</option>
+                                        <option value="nequi">📱 Nequi</option>
+                                        <option value="daviplata">📲 Daviplata</option>
+                                    </Select>
+                                </FormControl>
+                            </SimpleGrid>
+
+                            {/* Concepto */}
                             <FormControl isRequired>
-                                <FormLabel>Concepto</FormLabel>
+                                <FormLabel fontWeight="bold" mb={2}>
+                                    <HStack>
+                                        <Text>📝 Concepto</Text>
+                                        <Badge colorScheme="red" fontSize="xs">Requerido</Badge>
+                                    </HStack>
+                                </FormLabel>
                                 <Input
                                     value={nuevoPago.concepto}
                                     onChange={(e) => setNuevoPago({ ...nuevoPago, concepto: e.target.value })}
                                     placeholder="Descripción del pago"
+                                    size="lg"
+                                    bg="gray.50"
                                 />
                             </FormControl>
 
-                            {(nuevoPago.tipo_pago === 'membresia') && (
+                            {/* Fecha de Vencimiento - Solo para membresías */}
+                            {nuevoPago.tipo_pago === 'membresia' && (
                                 <FormControl>
-                                    <FormLabel>Fecha de Vencimiento</FormLabel>
+                                    <FormLabel fontWeight="bold" mb={2}>
+                                        <HStack>
+                                            <Text>📅 Fecha de Vencimiento</Text>
+                                            <Badge colorScheme="purple" fontSize="xs">Opcional</Badge>
+                                        </HStack>
+                                    </FormLabel>
                                     <Input
                                         type="date"
                                         value={nuevoPago.fecha_vencimiento}
                                         onChange={(e) => setNuevoPago({ ...nuevoPago, fecha_vencimiento: e.target.value })}
+                                        size="lg"
+                                        bg="purple.50"
                                     />
-                                    <Text fontSize="xs" color="gray.500" mt={1}>
-                                        Solo para membresías - Fecha en que expira la membresía
+                                    <Text fontSize="xs" color="gray.600" mt={1}>
+                                        💡 Fecha en que expira la membresía
                                     </Text>
                                 </FormControl>
                             )}
 
-                            <FormControl>
-                                <FormLabel>Comprobante</FormLabel>
-                                <Input
-                                    value={nuevoPago.comprobante}
-                                    onChange={(e) => setNuevoPago({ ...nuevoPago, comprobante: e.target.value })}
-                                    placeholder="Número de comprobante o referencia"
-                                />
-                                <Text fontSize="xs" color="gray.500" mt={1}>
-                                    Opcional - Número de transacción, factura o comprobante
-                                </Text>
-                            </FormControl>
+                            <Divider />
 
-                            <FormControl>
-                                <FormLabel>Notas</FormLabel>
-                                <Input
-                                    value={nuevoPago.notas}
-                                    onChange={(e) => setNuevoPago({ ...nuevoPago, notas: e.target.value })}
-                                    placeholder="Observaciones adicionales"
-                                />
-                                <Text fontSize="xs" color="gray.500" mt={1}>
-                                    Opcional - Información adicional sobre el pago
-                                </Text>
-                            </FormControl>
+                            {/* Campos Opcionales */}
+                            <Text fontWeight="bold" color="gray.600" fontSize="sm">
+                                ℹ️ Información Adicional (Opcional)
+                            </Text>
+
+                            <SimpleGrid columns={1} spacing={4}>
+                                <FormControl>
+                                    <FormLabel fontSize="sm" fontWeight="semibold">
+                                        📎 Comprobante
+                                    </FormLabel>
+                                    <Input
+                                        value={nuevoPago.comprobante}
+                                        onChange={(e) => setNuevoPago({ ...nuevoPago, comprobante: e.target.value })}
+                                        placeholder="Número de comprobante o referencia"
+                                        bg="gray.50"
+                                    />
+                                </FormControl>
+
+                                <FormControl>
+                                    <FormLabel fontSize="sm" fontWeight="semibold">
+                                        📋 Notas
+                                    </FormLabel>
+                                    <Input
+                                        value={nuevoPago.notas}
+                                        onChange={(e) => setNuevoPago({ ...nuevoPago, notas: e.target.value })}
+                                        placeholder="Observaciones adicionales"
+                                        bg="gray.50"
+                                    />
+                                </FormControl>
+                            </SimpleGrid>
                         </VStack>
                     </ModalBody>
-                    <ModalFooter>
-                        <Button variant="ghost" mr={3} onClick={onClose}>
-                            Cancelar
-                        </Button>
-                        <Button colorScheme="green" onClick={handleCrearPago} leftIcon={<FiDollarSign />}>
-                            Registrar Pago
-                        </Button>
+                    
+                    <ModalFooter bg="gray.50" borderBottomRadius="md">
+                        <HStack spacing={3}>
+                            <Button 
+                                variant="ghost" 
+                                onClick={onClose}
+                                size="lg"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button 
+                                colorScheme="green" 
+                                onClick={handleCrearPago} 
+                                leftIcon={<FiDollarSign />}
+                                size="lg"
+                                px={8}
+                                isDisabled={!nuevoPago.usuario_id || !nuevoPago.monto || !nuevoPago.concepto}
+                            >
+                                Registrar Pago
+                            </Button>
+                        </HStack>
                     </ModalFooter>
                 </ModalContent>
             </Modal>
