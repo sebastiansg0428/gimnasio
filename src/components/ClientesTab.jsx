@@ -149,12 +149,15 @@ export default function ClientesTab() {
 
     const [clientes, setClientes] = useState([])
     const [pagosMap, setPagosMap] = useState({}) // Mapa de pagos por usuario_id
+    const [estadisticas, setEstadisticas] = useState(null) // Estadísticas del backend
 
     // Estado real que aplica el filtro
     const [busqueda, setBusqueda] = useState('')
     // Estado intermedio del input para debounce
     const [inputValue, setInputValue] = useState('')
     const [filtroMembresia, setFiltroMembresia] = useState('todos')
+    const [filtroEstado, setFiltroEstado] = useState('todos') // Nuevo: filtro por estado
+    const [filtroVencidas, setFiltroVencidas] = useState(false) // Nuevo: solo membresías vencidas
     const toast = useToast()
     const [isOpen, setIsOpen] = useState(false)
     const [isPagoOpen, setIsPagoOpen] = useState(false)
@@ -452,29 +455,58 @@ export default function ClientesTab() {
         return () => clearTimeout(t)
     }, [inputValue])
 
-    // Obtener usuarios desde backend y reflejar en tabla de clientes
+    // Obtener usuarios y estadísticas desde backend
     useEffect(() => {
         let mounted = true
 
         async function fetchUsuarios() {
             try {
-                const usuarios = await usuariosAPI.getUsuarios()
+                console.log('🔄 INICIANDO CARGA DE USUARIOS...')
+                console.log('📊 FILTROS ACTUALES:', { filtroEstado, filtroMembresia, filtroVencidas })
                 
-                // Cargar todos los pagos de membresía
-                const pagos = await pagosAPI.getPagos({ tipo_pago: 'membresia' })
+                // Construir filtros para la petición
+                const filtros = {}
+                if (filtroEstado !== 'todos') filtros.estado = filtroEstado
+                if (filtroMembresia !== 'todos') filtros.membresia = filtroMembresia
+                if (filtroVencidas) filtros.vencidas = 'true'
                 
-                // Crear mapa de último pago por usuario
-                const pagosporUsuario = {}
-                if (Array.isArray(pagos)) {
-                    pagos.forEach(pago => {
-                        const userId = pago.usuario_id
-                        if (!pagosporUsuario[userId] || new Date(pago.fecha_pago) > new Date(pagosporUsuario[userId].fecha_pago)) {
-                            pagosporUsuario[userId] = pago
-                        }
-                    })
+                console.log('📤 FILTROS ENVIADOS AL BACKEND:', filtros)
+                
+                // Obtener usuarios con filtros
+                const usuarios = await usuariosAPI.getUsuarios(filtros)
+                console.log('✅ USUARIOS RECIBIDOS DEL BACKEND:', usuarios)
+                console.log('📊 CANTIDAD DE USUARIOS:', usuarios?.length || 0)
+                
+                // Cargar estadísticas del backend
+                try {
+                    const stats = await usuariosAPI.getEstadisticas()
+                    console.log('📊 ESTADÍSTICAS RECIBIDAS:', stats)
+                    if (mounted) setEstadisticas(stats)
+                } catch (statsError) {
+                    console.error('⚠️ Error cargando estadísticas:', statsError)
                 }
                 
-                if (mounted) setPagosMap(pagosporUsuario)
+                // Cargar todos los pagos de membresía
+                try {
+                    const pagos = await pagosAPI.getPagos({ tipo_pago: 'membresia' })
+                    console.log('💳 PAGOS RECIBIDOS:', pagos?.length || 0)
+                    
+                    // Crear mapa de último pago por usuario
+                    const pagosporUsuario = {}
+                    if (Array.isArray(pagos)) {
+                        pagos.forEach(pago => {
+                            const userId = pago.usuario_id
+                            if (!pagosporUsuario[userId] || new Date(pago.fecha_pago) > new Date(pagosporUsuario[userId].fecha_pago)) {
+                                pagosporUsuario[userId] = pago
+                            }
+                        })
+                    }
+                    
+                    if (mounted) setPagosMap(pagosporUsuario)
+                } catch (pagosError) {
+                    console.warn('⚠️ Error cargando pagos:', pagosError)
+                    if (mounted) setPagosMap({})
+                }
                 
                 // Mapear usuarios a formato correcto según la base de datos
                 const clientesDeUsuarios = (usuarios || []).map((user) => ({
@@ -496,19 +528,40 @@ export default function ClientesTab() {
                     updated_at: user.updated_at || null,
                 }))
 
-                if (mounted) setClientes(clientesDeUsuarios)
+                console.log('✅ CLIENTES MAPEADOS:', clientesDeUsuarios.length)
+                console.log('📋 PRIMER CLIENTE (EJEMPLO):', clientesDeUsuarios[0])
+                
+                if (mounted) {
+                    setClientes(clientesDeUsuarios)
+                    console.log('✅ ESTADO ACTUALIZADO CON', clientesDeUsuarios.length, 'CLIENTES')
+                }
             } catch (e) {
-                console.error('Error cargando usuarios:', e)
+                console.error('❌ ERROR CARGANDO USUARIOS:', e)
+                console.error('❌ DETALLES DEL ERROR:', e.message)
+                console.error('❌ STACK:', e.stack)
                 if (mounted) setClientes([])
+                
+                toast({
+                    title: '❌ Error al cargar clientes',
+                    description: e.message || 'Verifica que el backend esté corriendo en http://localhost:3001',
+                    status: 'error',
+                    duration: 5000,
+                    isClosable: true
+                })
             }
         }
 
+        console.log('🚀 COMPONENTE MONTADO - INICIANDO CARGA DE USUARIOS')
         fetchUsuarios()
         const interval = setInterval(fetchUsuarios, 5000)
-        return () => { mounted = false; clearInterval(interval) }
-    }, [])
+        return () => { 
+            console.log('🛑 COMPONENTE DESMONTADO - LIMPIANDO INTERVAL')
+            mounted = false
+            clearInterval(interval) 
+        }
+    }, [filtroEstado, filtroMembresia, filtroVencidas])
 
-    // Filtrar clientes basado en búsqueda y filtro de membresía
+    // Filtrar clientes solo por búsqueda (los filtros de estado/membresía ya se aplicaron en el backend)
     const clientesFiltrados = clientes.filter((cliente) => {
         const q = busqueda.trim().toLowerCase()
         const coincideBusqueda =
@@ -517,18 +570,15 @@ export default function ClientesTab() {
             (cliente.apellido && cliente.apellido.toLowerCase().includes(q)) ||
             (cliente.email && cliente.email.toLowerCase().includes(q)) ||
             (cliente.telefono && cliente.telefono.includes(q))
-        const coincideMembresia =
-            filtroMembresia === 'todos' ||
-            (cliente.membresia && cliente.membresia.toLowerCase() === filtroMembresia.toLowerCase())
-        return coincideBusqueda && coincideMembresia
+        
+        return coincideBusqueda
     })
     
-    console.log('🔍 FILTRO DE CLIENTES:', {
-        totalClientes: clientes.length,
-        clientesFiltrados: clientesFiltrados.length,
-        estadosEnLista: clientes.map(c => ({ id: c.id, nombre: c.nombre, estado: c.estado })),
-        filtroMembresia,
-        busqueda
+    console.log('🔍 FILTRO LOCAL (SOLO BÚSQUEDA):', {
+        totalClientesDelBackend: clientes.length,
+        clientesDespuesDeBusqueda: clientesFiltrados.length,
+        textoBusqueda: busqueda,
+        ejemploCliente: clientes[0]
     })
 
 
@@ -620,9 +670,9 @@ export default function ClientesTab() {
         }
         
         try {
-            console.log('🔄 INICIANDO CREACIÓN DE CLIENTE...')
+            console.log('🔄 INICIANDO CREACIÓN DE CLIENTE CON ENDPOINT ADMIN...')
             
-            // El backend ahora calcula automáticamente la fecha_vencimiento según el tipo de membresía
+            // Usar el endpoint /admin/clientes que acepta todos los campos
             const payload = { 
                 nombre: newUser.nombre.trim(),
                 apellido: newUser.apellido?.trim() || '',
@@ -632,13 +682,14 @@ export default function ClientesTab() {
                 fecha_nacimiento: newUser.fecha_nacimiento || null,
                 genero: newUser.genero || null,
                 membresia: newUser.membresia || 'DIARIA',
-                precio_membresia: newUser.registrar_pago ? parseFloat(newUser.precio_membresia) : null
+                precio_membresia: newUser.registrar_pago ? parseFloat(newUser.precio_membresia) : null,
+                rol: 'cliente' // Rol por defecto para clientes
             }
             
-            console.log('📦 Payload enviado al backend:', payload)
-            console.log('✨ El backend calculará automáticamente fecha_vencimiento según membresía:', newUser.membresia)
+            console.log('📦 Payload enviado al backend (/admin/clientes):', payload)
             
-            const usuarioCreado = await authAPI.register(payload)
+            // Usar el método createCliente que llama a /admin/clientes
+            const usuarioCreado = await usuariosAPI.createCliente(payload)
             console.log('✅ CLIENTE CREADO:', usuarioCreado)
             
             // Si se debe registrar el pago
@@ -750,9 +801,25 @@ export default function ClientesTab() {
     const refrescarDatos = async () => {
         try {
             console.log('📡 OBTENIENDO USUARIOS DEL BACKEND...')
-            const usuarios = await usuariosAPI.getUsuarios()
+            
+            // Construir filtros según estado actual
+            const filtros = {}
+            if (filtroEstado !== 'todos') filtros.estado = filtroEstado
+            if (filtroMembresia !== 'todos') filtros.membresia = filtroMembresia
+            if (filtroVencidas) filtros.vencidas = 'true'
+            
+            const usuarios = await usuariosAPI.getUsuarios(filtros)
             console.log('✅ USUARIOS OBTENIDOS:', usuarios.length, 'usuarios')
             console.log('📊 ESTADOS:', usuarios.map(u => ({ id: u.id, nombre: u.nombre, estado: u.estado })))
+            
+            // Cargar estadísticas
+            try {
+                const stats = await usuariosAPI.getEstadisticas()
+                setEstadisticas(stats)
+                console.log('📊 ESTADÍSTICAS CARGADAS:', stats)
+            } catch (statsError) {
+                console.error('Error cargando estadísticas:', statsError)
+            }
             
             // Cargar todos los pagos de membresía
             const pagos = await pagosAPI.getPagos({ tipo_pago: 'membresia' })
@@ -796,61 +863,99 @@ export default function ClientesTab() {
             }))
             setClientes(clientesDeUsuarios)
             console.log('✅ CLIENTES ACTUALIZADOS EN EL ESTADO')
-            toast({ title: 'Datos actualizados', status: 'success', duration: 1500 })
+            toast({ title: '✅ Datos actualizados', status: 'success', duration: 1500 })
         } catch (err) {
             console.error('Error refrescando datos:', err)
-            toast({ title: 'Error al actualizar', status: 'error', duration: 2000 })
+            toast({ title: 'Error al actualizar', description: err.message, status: 'error', duration: 2000 })
         }
     }
 
     return (
         <>
         <Box>
-            {/* Estadísticas rápidas */}
-            <SimpleGrid columns={{ base: 1, md: 4 }} spacing={4} mb={6}>
-                <Box bg="white" p={4} borderRadius="lg" boxShadow="sm">
+            {/* Estadísticas mejoradas desde el backend */}
+            <SimpleGrid columns={{ base: 1, md: 5 }} spacing={4} mb={6}>
+                <Box bg="white" p={4} borderRadius="lg" boxShadow="md" borderTop="4px solid" borderColor="green.500">
                     <Stat>
-                        <StatLabel color="gray.600">Total Clientes</StatLabel>
-                        <StatNumber color="green.600">{clientes.length}</StatNumber>
+                        <StatLabel color="gray.600" fontSize="sm">Total Clientes</StatLabel>
+                        <StatNumber color="green.600" fontSize="2xl">
+                            {estadisticas?.total_usuarios || clientes.length}
+                        </StatNumber>
                         <StatHelpText>
-                            Activos: {clientes.filter(c => c.estado === 'activo').length}
+                            <HStack spacing={1}>
+                                <FiCheckCircle color="green" />
+                                <Text>Activos: {estadisticas?.usuarios_activos || clientes.filter(c => c.estado === 'activo').length}</Text>
+                            </HStack>
                         </StatHelpText>
                     </Stat>
                 </Box>
-                <Box bg="white" p={4} borderRadius="lg" boxShadow="sm">
+                
+                <Box bg="white" p={4} borderRadius="lg" boxShadow="md" borderTop="4px solid" borderColor="orange.500">
                     <Stat>
-                        <StatLabel color="gray.600">Membresías por Vencer</StatLabel>
-                        <StatNumber color="orange.600">
-                            {clientes.filter(c => {
+                        <StatLabel color="gray.600" fontSize="sm">Por Vencer</StatLabel>
+                        <StatNumber color="orange.600" fontSize="2xl">
+                            {estadisticas?.membresias_por_vencer || clientes.filter(c => {
                                 const dias = calcularDiasVencimiento(c.fecha_vencimiento)
                                 return dias !== null && dias >= 0 && dias <= 7
                             }).length}
                         </StatNumber>
-                        <StatHelpText>Próximos 7 días</StatHelpText>
+                        <StatHelpText>
+                            <HStack spacing={1}>
+                                <FiClock color="orange" />
+                                <Text>Próximos 7 días</Text>
+                            </HStack>
+                        </StatHelpText>
                     </Stat>
                 </Box>
-                <Box bg="white" p={4} borderRadius="lg" boxShadow="sm">
+                
+                <Box bg="white" p={4} borderRadius="lg" boxShadow="md" borderTop="4px solid" borderColor="red.500">
                     <Stat>
-                        <StatLabel color="gray.600">Membresías Vencidas</StatLabel>
-                        <StatNumber color="red.600">
-                            {clientes.filter(c => {
+                        <StatLabel color="gray.600" fontSize="sm">Vencidas</StatLabel>
+                        <StatNumber color="red.600" fontSize="2xl">
+                            {estadisticas?.membresias_vencidas || clientes.filter(c => {
                                 const dias = calcularDiasVencimiento(c.fecha_vencimiento)
                                 return dias !== null && dias < 0
                             }).length}
                         </StatNumber>
-                        <StatHelpText>Requieren renovación</StatHelpText>
+                        <StatHelpText>
+                            <HStack spacing={1}>
+                                <FiAlertCircle color="red" />
+                                <Text>Renovación pendiente</Text>
+                            </HStack>
+                        </StatHelpText>
                     </Stat>
                 </Box>
-                <Box bg="white" p={4} borderRadius="lg" boxShadow="sm">
+                
+                <Box bg="white" p={4} borderRadius="lg" boxShadow="md" borderTop="4px solid" borderColor="blue.500">
                     <Stat>
-                        <StatLabel color="gray.600">Visitas Hoy</StatLabel>
-                        <StatNumber color="blue.600">
-                            {clientes.filter(c => {
+                        <StatLabel color="gray.600" fontSize="sm">Visitas Hoy</StatLabel>
+                        <StatNumber color="blue.600" fontSize="2xl">
+                            {estadisticas?.visitas_hoy || clientes.filter(c => {
                                 const hoy = new Date().toLocaleDateString('es-ES')
                                 return c.ultima_visita && c.ultima_visita.includes(hoy.split('/')[0])
                             }).length}
                         </StatNumber>
-                        <StatHelpText>Registradas</StatHelpText>
+                        <StatHelpText>
+                            <HStack spacing={1}>
+                                <FiActivity color="blue" />
+                                <Text>Registradas</Text>
+                            </HStack>
+                        </StatHelpText>
+                    </Stat>
+                </Box>
+                
+                <Box bg="white" p={4} borderRadius="lg" boxShadow="md" borderTop="4px solid" borderColor="gray.500">
+                    <Stat>
+                        <StatLabel color="gray.600" fontSize="sm">Inactivos</StatLabel>
+                        <StatNumber color="gray.600" fontSize="2xl">
+                            {estadisticas?.usuarios_inactivos || clientes.filter(c => c.estado === 'inactivo').length}
+                        </StatNumber>
+                        <StatHelpText>
+                            <HStack spacing={1}>
+                                <FiUser color="gray" />
+                                <Text>Sin actividad</Text>
+                            </HStack>
+                        </StatHelpText>
                     </Stat>
                 </Box>
             </SimpleGrid>
@@ -910,6 +1015,21 @@ export default function ClientesTab() {
                 </InputGroup>
 
                 <Select
+                    value={filtroEstado}
+                    onChange={(e) => setFiltroEstado(e.target.value)}
+                    maxW="150px"
+                    bg="white"
+                    color="gray.800"
+                    borderColor="gray.300"
+                    _focus={{ borderColor: "green.400", boxShadow: "0 0 0 1px #48bb78" }}
+                    _hover={{ borderColor: "green.400" }}
+                >
+                    <option value="todos">Todos los estados</option>
+                    <option value="activo">Activos</option>
+                    <option value="inactivo">Inactivos</option>
+                </Select>
+
+                <Select
                     value={filtroMembresia}
                     onChange={(e) => setFiltroMembresia(e.target.value)}
                     maxW="200px"
@@ -924,8 +1044,22 @@ export default function ClientesTab() {
                     <option value="DIARIA">Diaria</option>
                     <option value="SEMANAL">Semanal</option>
                     <option value="QUINCENAL">Quincenal</option>
+                    <option value="MENSUAL">Mensual</option>
                     <option value="ANUAL">Anual</option>
                 </Select>
+                
+                <Checkbox
+                    isChecked={filtroVencidas}
+                    onChange={(e) => setFiltroVencidas(e.target.checked)}
+                    colorScheme="red"
+                    borderColor="gray.300"
+                >
+                    Solo vencidas
+                </Checkbox>
+                
+                <Badge colorScheme="blue" fontSize="md" px={3} py={1} borderRadius="full">
+                    {clientesFiltrados.length} cliente{clientesFiltrados.length !== 1 ? 's' : ''}
+                </Badge>
             </HStack>
 
             <Box overflowX="auto" bg="white" borderRadius="lg" boxShadow="sm">
@@ -1197,9 +1331,10 @@ export default function ClientesTab() {
                                 value={newUser.membresia} 
                                 onChange={(e) => setNewUser(s => ({ ...s, membresia: e.target.value }))}
                             >
-                                <option value="DIARIA">Diaria</option>
-                                <option value="SEMANAL">Semanal</option>
-                                <option value="QUINCENAL">Quincenal</option>
+                                <option value="DIARIA">Dia</option>
+                                <option value="SEMANAL">Semana</option>
+                                <option value="QUINCENAL">Quincena</option>
+                                <option value="MENSUAL">Mensualidad</option>
                                 <option value="ANUAL">Anual</option>
                             </Select>
                         </FormControl>

@@ -960,7 +960,9 @@ export default function RutinasTab() {
                                                         </Box>
                                                         <Box>
                                                             <Text fontSize="xs" color="gray.600">Descanso</Text>
-                                                            <Text fontWeight="bold" color="orange.600">{ej.descanso_segundos || 0}s</Text>
+                                                            <Text fontWeight="bold" color="orange.600">
+                                                                {ej.descanso_segundos ?? ej.descanso ?? 0}s
+                                                            </Text>
                                                         </Box>
                                                         <Box>
                                                             <Text fontSize="xs" color="gray.600">Nivel</Text>

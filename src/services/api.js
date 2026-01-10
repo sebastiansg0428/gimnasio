@@ -50,8 +50,24 @@ async function apiRequest(endpoint, options = {}) {
 
 // USUARIOS
 export const usuariosAPI = {
-    getUsuarios: () => apiRequest('/usuarios'),
+    getUsuarios: (filtros = {}) => {
+        // Construir query string con filtros: ?estado=activo&membresia=MENSUAL&vencidas=true
+        const params = new URLSearchParams()
+        if (filtros.estado) params.append('estado', filtros.estado)
+        if (filtros.membresia) params.append('membresia', filtros.membresia)
+        if (filtros.vencidas) params.append('vencidas', filtros.vencidas)
+        if (filtros.nombre) params.append('nombre', filtros.nombre)
+        if (filtros.apellido) params.append('apellido', filtros.apellido)
+        if (filtros.email) params.append('email', filtros.email)
+        
+        const queryString = params.toString()
+        return apiRequest(queryString ? `/usuarios?${queryString}` : '/usuarios')
+    },
     getUsuario: (id) => apiRequest(`/usuarios/${id}`),
+    createCliente: (data) => apiRequest('/admin/clientes', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
     updateUsuario: (id, data) => apiRequest(`/usuarios/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data)
