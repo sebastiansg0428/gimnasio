@@ -896,13 +896,13 @@ export default function ClientesTab() {
                         <StatNumber color="orange.600" fontSize="2xl">
                             {estadisticas?.membresias_por_vencer || clientes.filter(c => {
                                 const dias = calcularDiasVencimiento(c.fecha_vencimiento)
-                                return dias !== null && dias >= 0 && dias <= 7
+                                return dias !== null && dias >= 0 && dias <= 5
                             }).length}
                         </StatNumber>
                         <StatHelpText>
                             <HStack spacing={1}>
                                 <FiClock color="orange" />
-                                <Text>Próximos 7 días</Text>
+                                <Text>Próximos 5 días</Text>
                             </HStack>
                         </StatHelpText>
                     </Stat>
@@ -1329,13 +1329,27 @@ export default function ClientesTab() {
                             <FormLabel>Membresía</FormLabel>
                             <Select 
                                 value={newUser.membresia} 
-                                onChange={(e) => setNewUser(s => ({ ...s, membresia: e.target.value }))}
+                                onChange={(e) => {
+                                    const tipoMembresia = e.target.value
+                                    const preciosMembresia = {
+                                        'DIARIA': 6000,
+                                        'SEMANAL': 25000,
+                                        'QUINCENAL': 40000,
+                                        'MENSUAL': 60000,
+                                        'ANUAL': 600000
+                                    }
+                                    setNewUser(s => ({ 
+                                        ...s, 
+                                        membresia: tipoMembresia,
+                                        precio_membresia: preciosMembresia[tipoMembresia] || s.precio_membresia
+                                    }))
+                                }}
                             >
-                                <option value="DIARIA">Dia</option>
-                                <option value="SEMANAL">Semana</option>
-                                <option value="QUINCENAL">Quincena</option>
-                                <option value="MENSUAL">Mensualidad</option>
-                                <option value="ANUAL">Anual</option>
+                                <option value="DIARIA">Dia ($6.000)</option>
+                                <option value="SEMANAL">Semana ($25.000)</option>
+                                <option value="QUINCENAL">Quincena ($40.000)</option>
+                                <option value="MENSUAL">Mensualidad ($60.000)</option>
+                                <option value="ANUAL">Anual ($600.000)</option>
                             </Select>
                         </FormControl>
                     </SimpleGrid>
