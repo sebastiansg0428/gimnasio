@@ -64,6 +64,7 @@ export default function PagosTab() {
     const [estadisticas, setEstadisticas] = useState(null)
     const [estadisticasMembresias, setEstadisticasMembresias] = useState(null)
     const [usuarios, setUsuarios] = useState([])
+    const [usuariosMembresiasActivas, setUsuariosMembresiasActivas] = useState([])
     const [productos, setProductos] = useState([])
     const [loading, setLoading] = useState(true)
     const [busqueda, setBusqueda] = useState('')
@@ -143,6 +144,15 @@ export default function PagosTab() {
                     return []
                 })
             
+            // Cargar usuarios con membresías activas
+            const usuariosMembresiasActivasData = await fetch('http://localhost:3001/usuarios/membresias/activas')
+                .then(r => r.ok ? r.json() : { usuarios: [] })
+                .then(data => data.usuarios || [])
+                .catch(err => {
+                    console.error('❌ Error cargando usuarios con membresías activas:', err)
+                    return []
+                })
+            
             // Cargar productos
             const productosData = await fetch('http://localhost:3001/productos')
                 .then(r => r.ok ? r.json() : [])
@@ -153,14 +163,17 @@ export default function PagosTab() {
 
             console.log('✅ PAGOS CARGADOS:', pagosData.length)
             console.log('✅ USUARIOS CARGADOS:', usuariosData.length)
+            console.log('✅ USUARIOS CON MEMBRESÍAS ACTIVAS:', usuariosMembresiasActivasData.length)
             console.log('✅ PRODUCTOS CARGADOS:', productosData.length)
             console.log('✅ ESTADÍSTICAS:', estadisticasData)
             console.log('📋 MUESTRA DE PAGOS:', pagosData.slice(0, 3)) // Ver primeros 3 pagos
+            console.log('📋 MUESTRA DE MEMBRESÍAS ACTIVAS:', usuariosMembresiasActivasData.slice(0, 3))
             
             setPagos(pagosData)
             setEstadisticas(estadisticasData)
             setEstadisticasMembresias(estadisticasMembresiasData)
             setUsuarios(usuariosData)
+            setUsuariosMembresiasActivas(usuariosMembresiasActivasData)
             setProductos(productosData)
             
         } catch (error) {
@@ -926,28 +939,38 @@ export default function PagosTab() {
                                                 </Tr>
                                             </Thead>
                                             <Tbody>
-                                                {usuarios.filter(u => u.membresia_activa).map((usuario) => {
-                                                    const ultimoPago = pagos
-                                                        .filter(p => p.usuario_id === usuario.id && p.tipo_pago === 'membresia')
-                                                        .sort((a, b) => new Date(b.fecha_pago) - new Date(a.fecha_pago))[0]
+                                                {usuariosMembresiasActivas.map((usuario) => {
+                                                    const diasRestantes = usuario.dias_restantes || 0
+                                                    const estadoColor = 
+                                                        usuario.estado_membresia === 'vencida' ? 'red' :
+                                                        usuario.estado_membresia === 'por_vencer' ? 'orange' :
+                                                        'green'
                                                     
                                                     return (
                                                         <Tr key={usuario.id}>
                                                             <Td>
-                                                                <Text fontWeight="medium">{usuario.nombre} {usuario.apellido}</Text>
+                                                                <VStack align="start" spacing={0}>
+                                                                    <Text fontWeight="medium">{usuario.nombre} {usuario.apellido}</Text>
+                                                                    <Badge colorScheme="purple" fontSize="xs">
+                                                                        {usuario.membresia}
+                                                                    </Badge>
+                                                                </VStack>
                                                             </Td>
                                                             <Td>{usuario.email}</Td>
                                                             <Td>
-                                                                {ultimoPago ? (
-                                                                    <Badge colorScheme="purple">
-                                                                        ${parseFloat(ultimoPago.monto || 0).toLocaleString('es-CO')}
-                                                                    </Badge>
-                                                                ) : '-'}
+                                                                <Badge colorScheme="green">
+                                                                    ${parseFloat(usuario.precio_membresia || 0).toLocaleString('es-CO')}
+                                                                </Badge>
                                                             </Td>
                                                             <Td>
-                                                                <Text fontSize="sm">
-                                                                    {usuario.fecha_vencimiento_membresia || 'N/A'}
-                                                                </Text>
+                                                                <VStack align="start" spacing={1}>
+                                                                    <Text fontSize="sm" fontWeight="medium">
+                                                                        {usuario.fecha_vencimiento}
+                                                                    </Text>
+                                                                    <Badge colorScheme={estadoColor} fontSize="xs">
+                                                                        {diasRestantes > 0 ? `${diasRestantes} días restantes` : 'Vencida'}
+                                                                    </Badge>
+                                                                </VStack>
                                                             </Td>
                                                             <Td>
                                                                 <Button
@@ -962,10 +985,15 @@ export default function PagosTab() {
                                                         </Tr>
                                                     )
                                                 })}
-                                                {usuarios.filter(u => u.membresia_activa).length === 0 && (
+                                                {usuariosMembresiasActivas.length === 0 && (
                                                     <Tr>
                                                         <Td colSpan={5} textAlign="center" py={10}>
-                                                            <Text color="gray.500">No hay clientes con membresías activas</Text>
+                                                            <VStack spacing={2}>
+                                                                <Text color="gray.500">No hay clientes con membresías activas</Text>
+                                                                <Text fontSize="sm" color="gray.400">
+                                                                    Los clientes aparecerán aquí cuando tengan una membresía vigente
+                                                                </Text>
+                                                            </VStack>
                                                         </Td>
                                                     </Tr>
                                                 )}

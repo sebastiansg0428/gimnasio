@@ -44,6 +44,7 @@ import {
     StatLabel,
     StatNumber,
     StatHelpText,
+    StatArrow,
     Flex,
     Spinner,
     Alert,
@@ -63,6 +64,9 @@ import {
     MenuButton,
     MenuList,
     MenuItem,
+    Card,
+    CardBody,
+    SimpleGrid,
 } from '@chakra-ui/react'
 import { 
     FiPlus, 
@@ -79,8 +83,11 @@ import {
     FiClock,
     FiCalendar,
     FiChevronDown,
-    FiMoreVertical
+    FiMoreVertical,
+    FiTrendingUp,
+    FiAward
 } from 'react-icons/fi'
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts'
 import { useState, useRef, useEffect } from 'react'
 import { 
     getRutinas, 
@@ -433,6 +440,69 @@ export default function RutinasTab() {
 
     return (
         <Box>
+            {/* Tarjetas de Estadísticas Principales (Visible en todas las pestañas) */}
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
+                <Card boxShadow="md" borderLeft="4px" borderLeftColor="green.400">
+                    <CardBody>
+                        <Stat>
+                            <StatLabel color="gray.600" fontSize="sm">Total Rutinas</StatLabel>
+                            <StatNumber fontSize="3xl" color="green.600">
+                                {estadisticas?.total_rutinas || rutinas.length}
+                            </StatNumber>
+                            <StatHelpText>
+                                <StatArrow type="increase" />
+                                {estadisticas?.rutinas_activas || rutinas.filter(r => r.estado === 'activo').length} activas
+                            </StatHelpText>
+                        </Stat>
+                    </CardBody>
+                </Card>
+
+                <Card boxShadow="md" borderLeft="4px" borderLeftColor="blue.400">
+                    <CardBody>
+                        <Stat>
+                            <StatLabel color="gray.600" fontSize="sm">Total Asignaciones</StatLabel>
+                            <StatNumber fontSize="3xl" color="blue.600">
+                                {estadisticas?.total_asignaciones || 0}
+                            </StatNumber>
+                            <StatHelpText>
+                                <FiUsers style={{ display: 'inline', marginRight: '4px' }} />
+                                {estadisticas?.usuarios_con_rutinas || 0} usuarios
+                            </StatHelpText>
+                        </Stat>
+                    </CardBody>
+                </Card>
+
+                <Card boxShadow="md" borderLeft="4px" borderLeftColor="purple.400">
+                    <CardBody>
+                        <Stat>
+                            <StatLabel color="gray.600" fontSize="sm">Rutina Más Popular</StatLabel>
+                            <StatNumber fontSize="lg" color="purple.600" noOfLines={1}>
+                                {estadisticas?.rutina_mas_popular?.nombre || 'N/A'}
+                            </StatNumber>
+                            <StatHelpText>
+                                <FiAward style={{ display: 'inline', marginRight: '4px' }} />
+                                {estadisticas?.rutina_mas_popular?.total_asignaciones || 0} asignaciones
+                            </StatHelpText>
+                        </Stat>
+                    </CardBody>
+                </Card>
+
+                <Card boxShadow="md" borderLeft="4px" borderLeftColor="orange.400">
+                    <CardBody>
+                        <Stat>
+                            <StatLabel color="gray.600" fontSize="sm">Promedio Duración</StatLabel>
+                            <StatNumber fontSize="3xl" color="orange.600">
+                                {Math.round(rutinas.reduce((sum, r) => sum + (r.duracion_estimada || 60), 0) / (rutinas.length || 1))} min
+                            </StatNumber>
+                            <StatHelpText>
+                                <FiClock style={{ display: 'inline', marginRight: '4px' }} />
+                                Por rutina
+                            </StatHelpText>
+                        </Stat>
+                    </CardBody>
+                </Card>
+            </SimpleGrid>
+
             <Tabs colorScheme="green" variant="enclosed">
                 <TabList mb={4}>
                     <Tab _selected={{ bg: 'green.500', color: 'white' }}>
@@ -453,40 +523,6 @@ export default function RutinasTab() {
                     {/* PANEL DE RUTINAS */}
                     <TabPanel p={0}>
                         <VStack align="stretch" spacing={6}>
-                            {/* Estadísticas Rápidas */}
-                            {estadisticas && (
-                                <Grid templateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={4}>
-                                    <GridItem>
-                                        <Stat bg="white" p={4} borderRadius="lg" boxShadow="sm">
-                                            <StatLabel color="gray.600">Total Rutinas</StatLabel>
-                                            <StatNumber color="green.600">{estadisticas.total_rutinas || rutinas.length}</StatNumber>
-                                            <StatHelpText>
-                                                <FiActivity style={{ display: 'inline', marginRight: '4px' }} />
-                                                Activas
-                                            </StatHelpText>
-                                        </Stat>
-                                    </GridItem>
-                                    <GridItem>
-                                        <Stat bg="white" p={4} borderRadius="lg" boxShadow="sm">
-                                            <StatLabel color="gray.600">Más Popular</StatLabel>
-                                            <StatNumber fontSize="lg" color="purple.600">
-                                                {estadisticas.rutina_mas_popular?.nombre || 'N/A'}
-                                            </StatNumber>
-                                            <StatHelpText>{estadisticas.rutina_mas_popular?.total_asignaciones || 0} asignaciones</StatHelpText>
-                                        </Stat>
-                                    </GridItem>
-                                    <GridItem>
-                                        <Stat bg="white" p={4} borderRadius="lg" boxShadow="sm">
-                                            <StatLabel color="gray.600">Rutinas Públicas</StatLabel>
-                                            <StatNumber color="blue.600">
-                                                {rutinas.filter(r => r.tipo === 'publica').length}
-                                            </StatNumber>
-                                            <StatHelpText>Disponibles para todos</StatHelpText>
-                                        </Stat>
-                                    </GridItem>
-                                </Grid>
-                            )}
-
                             {/* Filtros y Búsqueda */}
                             <HStack spacing={4} flexWrap="wrap">
                                 <Button 
@@ -677,91 +713,280 @@ export default function RutinasTab() {
 
                     {/* PANEL DE ESTADÍSTICAS */}
                     <TabPanel>
-                        {estadisticas ? (
-                            <Grid templateColumns="repeat(auto-fit, minmax(300px, 1fr))" gap={6}>
-                                <GridItem colSpan={1}>
-                                    <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
-                                        <Heading size="md" mb={4} color="green.600">
-                                            <FiActivity style={{ display: 'inline', marginRight: '8px' }} />
-                                            Resumen General
-                                        </Heading>
-                                        <VStack align="stretch" spacing={3}>
-                                            <Flex justify="space-between">
-                                                <Text color="gray.600">Total de Rutinas:</Text>
-                                                <Badge colorScheme="green" fontSize="md">{estadisticas.total_rutinas || 0}</Badge>
-                                            </Flex>
-                                            <Flex justify="space-between">
-                                                <Text color="gray.600">Rutinas Activas:</Text>
-                                                <Badge colorScheme="blue" fontSize="md">{estadisticas.rutinas_activas || 0}</Badge>
-                                            </Flex>
-                                            <Flex justify="space-between">
-                                                <Text color="gray.600">Total Asignaciones:</Text>
-                                                <Badge colorScheme="purple" fontSize="md">{estadisticas.total_asignaciones || 0}</Badge>
-                                            </Flex>
-                                        </VStack>
-                                    </Box>
-                                </GridItem>
+                        <VStack spacing={6} align="stretch">
+                            {/* Tarjetas de Estadísticas Principales */}
+                            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+                                <Card boxShadow="md" borderLeft="4px" borderLeftColor="green.400">
+                                    <CardBody>
+                                        <Stat>
+                                            <StatLabel color="gray.600" fontSize="sm">Total Rutinas</StatLabel>
+                                            <StatNumber fontSize="3xl" color="green.600">
+                                                {estadisticas?.total_rutinas || rutinas.length}
+                                            </StatNumber>
+                                            <StatHelpText>
+                                                <StatArrow type="increase" />
+                                                {estadisticas?.rutinas_activas || rutinas.filter(r => r.estado === 'activo').length} activas
+                                            </StatHelpText>
+                                        </Stat>
+                                    </CardBody>
+                                </Card>
 
-                                <GridItem colSpan={1}>
-                                    <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
-                                        <Heading size="md" mb={4} color="purple.600">
-                                            <FiTarget style={{ display: 'inline', marginRight: '8px' }} />
-                                            Top 5 Rutinas Populares
-                                        </Heading>
-                                        <List spacing={3}>
-                                            {(estadisticas.top_rutinas || []).slice(0, 5).map((rutina, idx) => (
-                                                <ListItem key={idx}>
-                                                    <Flex justify="space-between" align="center">
-                                                        <HStack>
-                                                            <Badge colorScheme="green">{idx + 1}</Badge>
-                                                            <Text fontWeight="medium">{rutina.nombre}</Text>
-                                                        </HStack>
-                                                        <Badge colorScheme="blue">{rutina.total_asignaciones || 0} asignaciones</Badge>
-                                                    </Flex>
-                                                </ListItem>
-                                            ))}
-                                        </List>
-                                    </Box>
-                                </GridItem>
+                                <Card boxShadow="md" borderLeft="4px" borderLeftColor="blue.400">
+                                    <CardBody>
+                                        <Stat>
+                                            <StatLabel color="gray.600" fontSize="sm">Total Asignaciones</StatLabel>
+                                            <StatNumber fontSize="3xl" color="blue.600">
+                                                {estadisticas?.total_asignaciones || 0}
+                                            </StatNumber>
+                                            <StatHelpText>
+                                                <FiUsers style={{ display: 'inline', marginRight: '4px' }} />
+                                                Rutinas asignadas a usuarios
+                                            </StatHelpText>
+                                        </Stat>
+                                    </CardBody>
+                                </Card>
 
-                                <GridItem colSpan={1}>
-                                    <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
-                                        <Heading size="md" mb={4} color="orange.600">
-                                            Distribución por Nivel
-                                        </Heading>
-                                        <VStack align="stretch" spacing={3}>
-                                            {['principiante', 'intermedio', 'avanzado'].map(nivel => {
-                                                const count = rutinas.filter(r => 
-                                                    (r.nivel || '').toLowerCase() === nivel
-                                                ).length
-                                                return (
-                                                    <Flex key={nivel} justify="space-between" align="center">
-                                                        <Text textTransform="capitalize">{nivel}:</Text>
-                                                        <Badge 
-                                                            colorScheme={
-                                                                nivel === 'avanzado' ? 'red' : 
-                                                                nivel === 'intermedio' ? 'yellow' : 'green'
-                                                            }
-                                                            fontSize="md"
+                                <Card boxShadow="md" borderLeft="4px" borderLeftColor="purple.400">
+                                    <CardBody>
+                                        <Stat>
+                                            <StatLabel color="gray.600" fontSize="sm">Rutina Más Popular</StatLabel>
+                                            <StatNumber fontSize="lg" color="purple.600" noOfLines={1}>
+                                                {estadisticas?.rutina_mas_popular?.nombre || 'N/A'}
+                                            </StatNumber>
+                                            <StatHelpText>
+                                                <FiAward style={{ display: 'inline', marginRight: '4px' }} />
+                                                {estadisticas?.rutina_mas_popular?.total_asignaciones || 0} asignaciones
+                                            </StatHelpText>
+                                        </Stat>
+                                    </CardBody>
+                                </Card>
+
+                                <Card boxShadow="md" borderLeft="4px" borderLeftColor="orange.400">
+                                    <CardBody>
+                                        <Stat>
+                                            <StatLabel color="gray.600" fontSize="sm">Promedio Duración</StatLabel>
+                                            <StatNumber fontSize="3xl" color="orange.600">
+                                                {Math.round(rutinas.reduce((sum, r) => sum + (r.duracion_estimada || 60), 0) / (rutinas.length || 1))} min
+                                            </StatNumber>
+                                            <StatHelpText>
+                                                <FiClock style={{ display: 'inline', marginRight: '4px' }} />
+                                                Por rutina
+                                            </StatHelpText>
+                                        </Stat>
+                                    </CardBody>
+                                </Card>
+                            </SimpleGrid>
+
+                            {estadisticas ? (
+                                <>
+                                    {/* Gráficos de Distribución */}
+                                    <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+                                        {/* Gráfico de Distribución por Nivel */}
+                                        <Card>
+                                            <CardBody>
+                                                <Heading size="md" mb={4}>Distribución por Nivel</Heading>
+                                                <Box h="300px">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <PieChart>
+                                                            <Pie
+                                                                data={[
+                                                                    { name: 'Principiante', value: rutinas.filter(r => (r.nivel || '').toLowerCase() === 'principiante').length },
+                                                                    { name: 'Intermedio', value: rutinas.filter(r => (r.nivel || '').toLowerCase() === 'intermedio').length },
+                                                                    { name: 'Avanzado', value: rutinas.filter(r => (r.nivel || '').toLowerCase() === 'avanzado').length }
+                                                                ]}
+                                                                cx="50%"
+                                                                cy="50%"
+                                                                labelLine={false}
+                                                                label={(entry) => `${entry.name}: ${entry.value}`}
+                                                                outerRadius={100}
+                                                                fill="#8884d8"
+                                                                dataKey="value"
+                                                            >
+                                                                <Cell fill="#48BB78" />
+                                                                <Cell fill="#ECC94B" />
+                                                                <Cell fill="#F56565" />
+                                                            </Pie>
+                                                            <RechartsTooltip />
+                                                            <Legend />
+                                                        </PieChart>
+                                                    </ResponsiveContainer>
+                                                </Box>
+                                            </CardBody>
+                                        </Card>
+
+                                        {/* Gráfico de Distribución por Objetivo */}
+                                        <Card>
+                                            <CardBody>
+                                                <Heading size="md" mb={4}>Distribución por Objetivo</Heading>
+                                                <Box h="300px">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <BarChart
+                                                            data={[
+                                                                { objetivo: 'Tonificación', cantidad: rutinas.filter(r => (r.objetivo || '').toLowerCase() === 'tonificacion').length },
+                                                                { objetivo: 'Hipertrofia', cantidad: rutinas.filter(r => (r.objetivo || '').toLowerCase() === 'hipertrofia').length },
+                                                                { objetivo: 'Fuerza', cantidad: rutinas.filter(r => (r.objetivo || '').toLowerCase() === 'fuerza').length },
+                                                                { objetivo: 'Pérdida Peso', cantidad: rutinas.filter(r => (r.objetivo || '').toLowerCase() === 'perdida_peso').length },
+                                                                { objetivo: 'Cardio', cantidad: rutinas.filter(r => (r.objetivo || '').toLowerCase() === 'cardio').length }
+                                                            ]}
                                                         >
-                                                            {count}
-                                                        </Badge>
-                                                    </Flex>
-                                                )
-                                            })}
-                                        </VStack>
-                                    </Box>
-                                </GridItem>
-                            </Grid>
-                        ) : (
-                            <Alert status="warning" borderRadius="lg">
-                                <AlertIcon />
-                                <AlertTitle>Estadísticas no disponibles</AlertTitle>
-                                <AlertDescription>
-                                    No se pudieron cargar las estadísticas en este momento.
-                                </AlertDescription>
-                            </Alert>
-                        )}
+                                                            <CartesianGrid strokeDasharray="3 3" />
+                                                            <XAxis dataKey="objetivo" />
+                                                            <YAxis />
+                                                            <RechartsTooltip />
+                                                            <Bar dataKey="cantidad" fill="#805AD5" />
+                                                        </BarChart>
+                                                    </ResponsiveContainer>
+                                                </Box>
+                                            </CardBody>
+                                        </Card>
+                                    </SimpleGrid>
+
+                                    {/* Sección de Top Rutinas y Detalles */}
+                                    <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+                                        {/* Top 5 Rutinas Populares */}
+                                        <Card>
+                                            <CardBody>
+                                                <Heading size="md" mb={4} color="purple.600">
+                                                    <FiTarget style={{ display: 'inline', marginRight: '8px' }} />
+                                                    Top 5 Rutinas Populares
+                                                </Heading>
+                                                {(estadisticas.top_rutinas || []).length > 0 ? (
+                                                    <List spacing={3}>
+                                                        {(estadisticas.top_rutinas || []).slice(0, 5).map((rutina, idx) => (
+                                                            <ListItem key={idx} p={3} bg="gray.50" borderRadius="md">
+                                                                <Flex justify="space-between" align="center">
+                                                                    <HStack>
+                                                                        <Badge colorScheme="green" fontSize="lg" px={3} py={1}>{idx + 1}</Badge>
+                                                                        <VStack align="start" spacing={0}>
+                                                                            <Text fontWeight="bold">{rutina.nombre}</Text>
+                                                                            <Text fontSize="xs" color="gray.600">
+                                                                                {rutina.nivel} • {rutina.objetivo}
+                                                                            </Text>
+                                                                        </VStack>
+                                                                    </HStack>
+                                                                    <Badge colorScheme="blue" fontSize="md" px={3} py={1}>
+                                                                        <FiUsers style={{ display: 'inline', marginRight: '4px' }} />
+                                                                        {rutina.total_asignaciones || 0}
+                                                                    </Badge>
+                                                                </Flex>
+                                                            </ListItem>
+                                                        ))}
+                                                    </List>
+                                                ) : (
+                                                    <Alert status="info">
+                                                        <AlertIcon />
+                                                        No hay rutinas asignadas aún
+                                                    </Alert>
+                                                )}
+                                            </CardBody>
+                                        </Card>
+
+                                        {/* Distribución por Tipo */}
+                                        <Card>
+                                            <CardBody>
+                                                <Heading size="md" mb={4} color="orange.600">
+                                                    Distribución por Tipo
+                                                </Heading>
+                                                <VStack align="stretch" spacing={4}>
+                                                    {[
+                                                        { tipo: 'publica', label: 'Pública', color: 'blue' },
+                                                        { tipo: 'privada', label: 'Privada', color: 'purple' },
+                                                        { tipo: 'personalizada', label: 'Personalizada', color: 'orange' }
+                                                    ].map(({ tipo, label, color }) => {
+                                                        const count = rutinas.filter(r => (r.tipo || '').toLowerCase() === tipo).length
+                                                        const percentage = rutinas.length > 0 ? Math.round((count / rutinas.length) * 100) : 0
+                                                        return (
+                                                            <Box key={tipo}>
+                                                                <Flex justify="space-between" mb={2}>
+                                                                    <Text fontWeight="medium" textTransform="capitalize">{label}</Text>
+                                                                    <HStack>
+                                                                        <Text fontWeight="bold">{count}</Text>
+                                                                        <Text fontSize="sm" color="gray.600">({percentage}%)</Text>
+                                                                    </HStack>
+                                                                </Flex>
+                                                                <Box bg="gray.200" borderRadius="full" h="8px">
+                                                                    <Box 
+                                                                        bg={`${color}.500`} 
+                                                                        borderRadius="full" 
+                                                                        h="100%" 
+                                                                        w={`${percentage}%`}
+                                                                        transition="width 0.3s"
+                                                                    />
+                                                                </Box>
+                                                            </Box>
+                                                        )
+                                                    })}
+                                                </VStack>
+
+                                                <Divider my={4} />
+
+                                                <Heading size="sm" mb={3} color="green.600">
+                                                    Frecuencia Semanal
+                                                </Heading>
+                                                <VStack align="stretch" spacing={3}>
+                                                    {[3, 4, 5, 6].map(freq => {
+                                                        const count = rutinas.filter(r => r.frecuencia_semanal === freq).length
+                                                        return (
+                                                            <Flex key={freq} justify="space-between" align="center">
+                                                                <Text color="gray.600">{freq} días/semana:</Text>
+                                                                <Badge colorScheme="green" fontSize="md">{count}</Badge>
+                                                            </Flex>
+                                                        )
+                                                    })}
+                                                </VStack>
+                                            </CardBody>
+                                        </Card>
+                                    </SimpleGrid>
+
+                                    {/* Resumen General Detallado */}
+                                    <Card>
+                                        <CardBody>
+                                            <Heading size="md" mb={4} color="green.600">
+                                                <FiActivity style={{ display: 'inline', marginRight: '8px' }} />
+                                                Resumen Detallado
+                                            </Heading>
+                                            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+                                                <Box p={4} bg="green.50" borderRadius="md">
+                                                    <Text fontSize="sm" color="gray.600" fontWeight="bold">Total de Rutinas</Text>
+                                                    <Text fontSize="3xl" color="green.600" fontWeight="bold">
+                                                        {estadisticas?.total_rutinas || rutinas.length}
+                                                    </Text>
+                                                    <Text fontSize="xs" color="gray.600">
+                                                        {estadisticas?.rutinas_activas || 0} activas • {rutinas.filter(r => r.estado !== 'activo').length} inactivas
+                                                    </Text>
+                                                </Box>
+                                                <Box p={4} bg="blue.50" borderRadius="md">
+                                                    <Text fontSize="sm" color="gray.600" fontWeight="bold">Usuarios con Rutinas</Text>
+                                                    <Text fontSize="3xl" color="blue.600" fontWeight="bold">
+                                                        {estadisticas?.usuarios_con_rutinas || 0}
+                                                    </Text>
+                                                    <Text fontSize="xs" color="gray.600">
+                                                        De {usuarios.length} usuarios totales
+                                                    </Text>
+                                                </Box>
+                                                <Box p={4} bg="purple.50" borderRadius="md">
+                                                    <Text fontSize="sm" color="gray.600" fontWeight="bold">Promedio Asignaciones</Text>
+                                                    <Text fontSize="3xl" color="purple.600" fontWeight="bold">
+                                                        {rutinas.length > 0 ? ((estadisticas?.total_asignaciones || 0) / rutinas.length).toFixed(1) : 0}
+                                                    </Text>
+                                                    <Text fontSize="xs" color="gray.600">
+                                                        Por rutina
+                                                    </Text>
+                                                </Box>
+                                            </SimpleGrid>
+                                        </CardBody>
+                                    </Card>
+                                </>
+                            ) : (
+                                <Alert status="warning" borderRadius="lg">
+                                    <AlertIcon />
+                                    <AlertTitle>Estadísticas no disponibles</AlertTitle>
+                                    <AlertDescription>
+                                        No se pudieron cargar las estadísticas en este momento. Intente actualizar la página.
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                        </VStack>
                     </TabPanel>
                 </TabPanels>
             </Tabs>
