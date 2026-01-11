@@ -74,6 +74,7 @@ export default function PagosTab() {
     const [fechaDesde, setFechaDesde] = useState('')
     const [fechaHasta, setFechaHasta] = useState('')
     const [aplicandoFiltros, setAplicandoFiltros] = useState(false)
+    const [tabIndex, setTabIndex] = useState(0)
     const [nuevoPago, setNuevoPago] = useState({
         usuario_id: '',
         monto: '',
@@ -606,7 +607,7 @@ export default function PagosTab() {
             </SimpleGrid>
 
             {/* Pestañas */}
-            <Tabs variant="enclosed" colorScheme="green">
+            <Tabs variant="enclosed" colorScheme="green" index={tabIndex} onChange={setTabIndex}>
                 <TabList>
                     <Tab><FiDollarSign /> <Text ml={2}>Pagos</Text></Tab>
                     <Tab><FiTrendingUp /> <Text ml={2}>Estadísticas</Text></Tab>
@@ -865,17 +866,32 @@ export default function PagosTab() {
                                 <Card>
                                     <CardBody>
                                         <Heading size="md" mb={4}>Distribución por Método</Heading>
-                                        <Box w="100%" h="300px" minH="300px">
-                                            <ResponsiveContainer width="100%" height="100%">
+                                        {!loading && pagos.length > 0 ? (
+                                            <Box w="100%" h="300px" minH="300px">
+                                                <ResponsiveContainer width="100%" height={300}>
                                                 <PieChart>
                                                     <Pie
-                                                        data={[
-                                                            { name: 'Efectivo', value: pagos.filter(p => p.metodo_pago === 'efectivo' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) },
-                                                            { name: 'Tarjeta', value: pagos.filter(p => p.metodo_pago === 'tarjeta' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) },
-                                                            { name: 'Transferencia', value: pagos.filter(p => p.metodo_pago === 'transferencia' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) },
-                                                            { name: 'Nequi', value: pagos.filter(p => p.metodo_pago === 'nequi' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) },
-                                                            { name: 'Daviplata', value: pagos.filter(p => p.metodo_pago === 'daviplata' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) }
-                                                        ]}
+                                                        data={(() => {
+                                                            // Intentar usar datos del backend primero, si no calcular del frontend
+                                                            if (estadisticas?.distribucionPorMetodo) {
+                                                                return [
+                                                                    { name: 'Efectivo', value: estadisticas.distribucionPorMetodo.efectivo || 0 },
+                                                                    { name: 'Tarjeta', value: estadisticas.distribucionPorMetodo.tarjeta || 0 },
+                                                                    { name: 'Transferencia', value: estadisticas.distribucionPorMetodo.transferencia || 0 },
+                                                                    { name: 'Nequi', value: estadisticas.distribucionPorMetodo.nequi || 0 },
+                                                                    { name: 'Daviplata', value: estadisticas.distribucionPorMetodo.daviplata || 0 }
+                                                                ].filter(item => item.value > 0)
+                                                            } else {
+                                                                // Calcular desde pagos
+                                                                return [
+                                                                    { name: 'Efectivo', value: pagos.filter(p => p.metodo_pago === 'efectivo' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) },
+                                                                    { name: 'Tarjeta', value: pagos.filter(p => p.metodo_pago === 'tarjeta' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) },
+                                                                    { name: 'Transferencia', value: pagos.filter(p => p.metodo_pago === 'transferencia' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) },
+                                                                    { name: 'Nequi', value: pagos.filter(p => p.metodo_pago === 'nequi' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) },
+                                                                    { name: 'Daviplata', value: pagos.filter(p => p.metodo_pago === 'daviplata' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) }
+                                                                ].filter(item => item.value > 0)
+                                                            }
+                                                        })()}
                                                         cx="50%"
                                                         cy="50%"
                                                         labelLine={false}
@@ -895,28 +911,52 @@ export default function PagosTab() {
                                                 </PieChart>
                                             </ResponsiveContainer>
                                         </Box>
+                                        ) : (
+                                            <Box h="300px" display="flex" alignItems="center" justifyContent="center">
+                                                <Text color="gray.500">No hay datos disponibles</Text>
+                                            </Box>
+                                        )}
                                     </CardBody>
                                 </Card>
 
-                                {/* Gráfico por Tipo de Pago */}
                                 <Card>
                                     <CardBody>
                                         <Heading size="md" mb={4}>Distribución por Tipo</Heading>
-                                        <Box w="100%" h="300px" minH="300px">
-                                            <ResponsiveContainer width="100%" height="100%">
+                                        {!loading && pagos.length > 0 ? (
+                                            <Box w="100%" h="300px" minH="300px">
+                                                <ResponsiveContainer width="100%" height={300}>
                                                 <BarChart
-                                                    data={[
-                                                        { 
-                                                            tipo: 'Membresías', 
-                                                            monto: pagos.filter(p => p.tipo_pago === 'membresia' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0),
-                                                            cantidad: pagos.filter(p => p.tipo_pago === 'membresia' && (p.estado === 'completado' || p.estado === 'pagado')).length
-                                                        },
-                                                        { 
-                                                            tipo: 'Productos', 
-                                                            monto: pagos.filter(p => p.tipo_pago === 'producto' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0),
-                                                            cantidad: pagos.filter(p => p.tipo_pago === 'producto' && (p.estado === 'completado' || p.estado === 'pagado')).length
+                                                    data={(() => {
+                                                        // Intentar usar datos del backend primero, si no calcular del frontend
+                                                        if (estadisticas?.distribucionPorTipo) {
+                                                            return [
+                                                                { 
+                                                                    tipo: 'Membresías', 
+                                                                    monto: estadisticas.distribucionPorTipo.membresia?.total || 0,
+                                                                    cantidad: estadisticas.distribucionPorTipo.membresia?.cantidad || 0
+                                                                },
+                                                                { 
+                                                                    tipo: 'Productos', 
+                                                                    monto: estadisticas.distribucionPorTipo.producto?.total || 0,
+                                                                    cantidad: estadisticas.distribucionPorTipo.producto?.cantidad || 0
+                                                                }
+                                                            ]
+                                                        } else {
+                                                            // Calcular desde pagos
+                                                            return [
+                                                                { 
+                                                                    tipo: 'Membresías', 
+                                                                    monto: pagos.filter(p => p.tipo_pago === 'membresia' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0),
+                                                                    cantidad: pagos.filter(p => p.tipo_pago === 'membresia' && (p.estado === 'completado' || p.estado === 'pagado')).length
+                                                                },
+                                                                { 
+                                                                    tipo: 'Productos', 
+                                                                    monto: pagos.filter(p => p.tipo_pago === 'producto' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0),
+                                                                    cantidad: pagos.filter(p => p.tipo_pago === 'producto' && (p.estado === 'completado' || p.estado === 'pagado')).length
+                                                                }
+                                                            ]
                                                         }
-                                                    ]}
+                                                    })()}
                                                 >
                                                     <CartesianGrid strokeDasharray="3 3" />
                                                     <XAxis dataKey="tipo" />
@@ -932,6 +972,11 @@ export default function PagosTab() {
                                                 </BarChart>
                                             </ResponsiveContainer>
                                         </Box>
+                                        ) : (
+                                            <Box h="300px" display="flex" alignItems="center" justifyContent="center">
+                                                <Text color="gray.500">No hay datos disponibles</Text>
+                                            </Box>
+                                        )}
                                         
                                         {/* Resumen de tipos */}
                                         <SimpleGrid columns={2} spacing={3} mt={4}>
@@ -940,11 +985,13 @@ export default function PagosTab() {
                                                     <VStack align="start" spacing={0}>
                                                         <Text fontSize="xs" color="gray.600" fontWeight="bold">💪 Membresías</Text>
                                                         <Text fontSize="sm" color="purple.700" fontWeight="bold">
-                                                            {pagos.filter(p => p.tipo_pago === 'membresia' && (p.estado === 'completado' || p.estado === 'pagado')).length} pagos
+                                                            {estadisticas?.distribucionPorTipo?.membresia?.cantidad || 
+                                                             pagos.filter(p => p.tipo_pago === 'membresia' && (p.estado === 'completado' || p.estado === 'pagado')).length} pagos
                                                         </Text>
                                                     </VStack>
                                                     <Text fontSize="lg" fontWeight="bold" color="purple.600">
-                                                        ${pagos.filter(p => p.tipo_pago === 'membresia' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0).toLocaleString('es-CO')}
+                                                        ${(estadisticas?.distribucionPorTipo?.membresia?.total || 
+                                                           pagos.filter(p => p.tipo_pago === 'membresia' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0)).toLocaleString('es-CO')}
                                                     </Text>
                                                 </HStack>
                                             </Box>
@@ -954,11 +1001,13 @@ export default function PagosTab() {
                                                     <VStack align="start" spacing={0}>
                                                         <Text fontSize="xs" color="gray.600" fontWeight="bold">🛒 Productos</Text>
                                                         <Text fontSize="sm" color="blue.700" fontWeight="bold">
-                                                            {pagos.filter(p => p.tipo_pago === 'producto' && (p.estado === 'completado' || p.estado === 'pagado')).length} ventas
+                                                            {estadisticas?.distribucionPorTipo?.producto?.cantidad || 
+                                                             pagos.filter(p => p.tipo_pago === 'producto' && (p.estado === 'completado' || p.estado === 'pagado')).length} ventas
                                                         </Text>
                                                     </VStack>
                                                     <Text fontSize="lg" fontWeight="bold" color="blue.600">
-                                                        ${pagos.filter(p => p.tipo_pago === 'producto' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0).toLocaleString('es-CO')}
+                                                        ${(estadisticas?.distribucionPorTipo?.producto?.total || 
+                                                           pagos.filter(p => p.tipo_pago === 'producto' && (p.estado === 'completado' || p.estado === 'pagado')).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0)).toLocaleString('es-CO')}
                                                     </Text>
                                                 </HStack>
                                             </Box>
@@ -975,7 +1024,9 @@ export default function PagosTab() {
                                         <Box p={4} bg="green.50" borderRadius="md">
                                             <Text fontSize="sm" color="gray.600" fontWeight="bold">Ingresos Totales</Text>
                                             <Text fontSize="2xl" color="green.600" fontWeight="bold">
-                                                ${(estadisticas?.totalIngresos || 0).toLocaleString('es-CO')}
+                                                ${(estadisticas?.totalIngresos || 
+                                                   pagos.filter(p => p.estado === 'completado' || p.estado === 'pagado').reduce((sum, p) => sum + parseFloat(p.monto || 0), 0)
+                                                ).toLocaleString('es-CO')}
                                             </Text>
                                         </Box>
                                         <Box p={4} bg="blue.50" borderRadius="md">
@@ -995,39 +1046,53 @@ export default function PagosTab() {
                             </Card>
 
                             {/* Estadísticas de Membresías */}
-                            {estadisticasMembresias && (
-                                <Card>
-                                    <CardBody>
-                                        <Heading size="md" mb={4}>Estadísticas de Membresías</Heading>
-                                        <SimpleGrid columns={{ base: 1, md: 4 }} spacing={4}>
-                                            <Box textAlign="center" p={4} bg="purple.50" borderRadius="md">
-                                                <Text fontSize="3xl" fontWeight="bold" color="purple.600">
-                                                    {estadisticasMembresias.totalMembresias}
-                                                </Text>
-                                                <Text fontSize="sm" color="gray.600">Membresías Vendidas</Text>
-                                            </Box>
-                                            <Box textAlign="center" p={4} bg="green.50" borderRadius="md">
-                                                <Text fontSize="3xl" fontWeight="bold" color="green.600">
-                                                    {estadisticasMembresias.activas}
-                                                </Text>
-                                                <Text fontSize="sm" color="gray.600">Activas</Text>
-                                            </Box>
-                                            <Box textAlign="center" p={4} bg="orange.50" borderRadius="md">
-                                                <Text fontSize="3xl" fontWeight="bold" color="orange.600">
-                                                    {estadisticasMembresias.porVencer}
-                                                </Text>
-                                                <Text fontSize="sm" color="gray.600">Por Vencer (7 días)</Text>
-                                            </Box>
-                                            <Box textAlign="center" p={4} bg="red.50" borderRadius="md">
-                                                <Text fontSize="3xl" fontWeight="bold" color="red.600">
-                                                    {estadisticasMembresias.vencidas}
-                                                </Text>
-                                                <Text fontSize="sm" color="gray.600">Vencidas</Text>
-                                            </Box>
-                                        </SimpleGrid>
-                                    </CardBody>
-                                </Card>
-                            )}
+                            <Card>
+                                <CardBody>
+                                    <Heading size="md" mb={4}>Estadísticas de Membresías</Heading>
+                                    <SimpleGrid columns={{ base: 1, md: 4 }} spacing={4}>
+                                        <Box textAlign="center" p={4} bg="purple.50" borderRadius="md">
+                                            <Text fontSize="3xl" fontWeight="bold" color="purple.600">
+                                                {estadisticasMembresias?.totalMembresias || 
+                                                 pagos.filter(p => p.tipo_pago === 'membresia' && (p.estado === 'completado' || p.estado === 'pagado')).length}
+                                            </Text>
+                                            <Text fontSize="sm" color="gray.600">Membresías Vendidas</Text>
+                                        </Box>
+                                        <Box textAlign="center" p={4} bg="green.50" borderRadius="md">
+                                            <Text fontSize="3xl" fontWeight="bold" color="green.600">
+                                                {estadisticasMembresias?.activas || 
+                                                 usuariosMembresiasActivas.length}
+                                            </Text>
+                                            <Text fontSize="sm" color="gray.600">Activas</Text>
+                                        </Box>
+                                        <Box textAlign="center" p={4} bg="orange.50" borderRadius="md">
+                                            <Text fontSize="3xl" fontWeight="bold" color="orange.600">
+                                                {estadisticasMembresias?.porVencer || 
+                                                 usuarios.filter(u => {
+                                                    if (!u.fecha_vencimiento) return false
+                                                    const hoy = new Date()
+                                                    const vencimiento = new Date(u.fecha_vencimiento)
+                                                    const diffTime = vencimiento - hoy
+                                                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+                                                    return diffDays >= 0 && diffDays <= 7
+                                                 }).length}
+                                            </Text>
+                                            <Text fontSize="sm" color="gray.600">Por Vencer (7 días)</Text>
+                                        </Box>
+                                        <Box textAlign="center" p={4} bg="red.50" borderRadius="md">
+                                            <Text fontSize="3xl" fontWeight="bold" color="red.600">
+                                                {estadisticasMembresias?.vencidas || 
+                                                 usuarios.filter(u => {
+                                                    if (!u.fecha_vencimiento) return false
+                                                    const hoy = new Date()
+                                                    const vencimiento = new Date(u.fecha_vencimiento)
+                                                    return vencimiento < hoy
+                                                 }).length}
+                                            </Text>
+                                            <Text fontSize="sm" color="gray.600">Vencidas</Text>
+                                        </Box>
+                                    </SimpleGrid>
+                                </CardBody>
+                            </Card>
                         </VStack>
                     </TabPanel>
 
