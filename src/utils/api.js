@@ -1,5 +1,27 @@
 const API_BASE = 'http://localhost:3001'
 
+// Obtener token de autenticación
+function getAuthToken() {
+    try {
+        const session = localStorage.getItem('rg_session')
+        if (!session) return null
+        const parsed = JSON.parse(session)
+        return parsed?.token || parsed?.user?.token || null
+    } catch (error) {
+        return null
+    }
+}
+
+// Crear headers con autenticación
+function getAuthHeaders() {
+    const headers = { 'Content-Type': 'application/json' }
+    const token = getAuthToken()
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+    }
+    return headers
+}
+
 // Función auxiliar para normalizar datos de entrenadores del backend al frontend
 function normalizarEntrenador(entrenador) {
     if (!entrenador || typeof entrenador !== 'object') return entrenador
@@ -65,19 +87,19 @@ async function handleResponse(res) {
 // ============== PRODUCTOS ==============
 
 export async function getProductos() {
-    const res = await fetch(`${API_BASE}/productos`)
+    const res = await fetch(`${API_BASE}/productos`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function getProducto(id) {
-    const res = await fetch(`${API_BASE}/productos/${id}`)
+    const res = await fetch(`${API_BASE}/productos/${id}`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function createProducto(data) {
     const res = await fetch(`${API_BASE}/productos`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
@@ -86,57 +108,60 @@ export async function createProducto(data) {
 export async function updateProducto(id, data) {
     const res = await fetch(`${API_BASE}/productos/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
 }
 
 export async function deleteProducto(id) {
-    const res = await fetch(`${API_BASE}/productos/${id}`, { method: 'DELETE' })
+    const res = await fetch(`${API_BASE}/productos/${id}`, { 
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    })
     return handleResponse(res)
 }
 
 export async function venderProducto(id, cantidad) {
     const res = await fetch(`${API_BASE}/productos/${id}/vender`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ cantidad }),
     })
     return handleResponse(res)
 }
 
 export async function getEstadisticasProductos() {
-    const res = await fetch(`${API_BASE}/productos/estadisticas`)
+    const res = await fetch(`${API_BASE}/productos/estadisticas`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function getVentas() {
-    const res = await fetch(`${API_BASE}/ventas`)
+    const res = await fetch(`${API_BASE}/ventas`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function getGananciaProducto(id) {
-    const res = await fetch(`${API_BASE}/productos/${id}/ganancia`)
+    const res = await fetch(`${API_BASE}/productos/${id}/ganancia`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 // ============== USUARIOS ==============
 
 export async function getUsuarios() {
-    const res = await fetch(`${API_BASE}/usuarios`)
+    const res = await fetch(`${API_BASE}/usuarios`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function getUsuario(id) {
-    const res = await fetch(`${API_BASE}/usuarios/${id}`)
+    const res = await fetch(`${API_BASE}/usuarios/${id}`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function createUsuario(data) {
     const res = await fetch(`${API_BASE}/usuarios`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
@@ -145,21 +170,24 @@ export async function createUsuario(data) {
 export async function updateUsuario(id, data) {
     const res = await fetch(`${API_BASE}/usuarios/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
 }
 
 export async function deleteUsuario(id) {
-    const res = await fetch(`${API_BASE}/usuarios/${id}`, { method: 'DELETE' })
+    const res = await fetch(`${API_BASE}/usuarios/${id}`, { 
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    })
     return handleResponse(res)
 }
 
 export async function cambiarEstadoUsuario(id, estado) {
     const res = await fetch(`${API_BASE}/usuarios/${id}/estado`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ estado }),
     })
     return handleResponse(res)
@@ -168,12 +196,13 @@ export async function cambiarEstadoUsuario(id, estado) {
 export async function registrarVisita(id) {
     const res = await fetch(`${API_BASE}/usuarios/${id}/visita`, {
         method: 'POST',
+        headers: getAuthHeaders()
     })
     return handleResponse(res)
 }
 
 export async function getEstadisticasUsuarios() {
-    const res = await fetch(`${API_BASE}/usuarios/estadisticas`)
+    const res = await fetch(`${API_BASE}/usuarios/estadisticas`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
@@ -187,19 +216,19 @@ export async function getEjercicios(filtros = {}) {
     
     const queryString = params.toString()
     const url = queryString ? `${API_BASE}/ejercicios?${queryString}` : `${API_BASE}/ejercicios`
-    const res = await fetch(url)
+    const res = await fetch(url, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function getEjercicio(id) {
-    const res = await fetch(`${API_BASE}/ejercicios/${id}`)
+    const res = await fetch(`${API_BASE}/ejercicios/${id}`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function createEjercicio(data) {
     const res = await fetch(`${API_BASE}/ejercicios`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
@@ -208,14 +237,17 @@ export async function createEjercicio(data) {
 export async function updateEjercicio(id, data) {
     const res = await fetch(`${API_BASE}/ejercicios/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
 }
 
 export async function deleteEjercicio(id) {
-    const res = await fetch(`${API_BASE}/ejercicios/${id}`, { method: 'DELETE' })
+    const res = await fetch(`${API_BASE}/ejercicios/${id}`, { 
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    })
     return handleResponse(res)
 }
 
@@ -229,19 +261,19 @@ export async function getRutinas(filtros = {}) {
     
     const queryString = params.toString()
     const url = queryString ? `${API_BASE}/rutinas?${queryString}` : `${API_BASE}/rutinas`
-    const res = await fetch(url)
+    const res = await fetch(url, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function getRutina(id) {
-    const res = await fetch(`${API_BASE}/rutinas/${id}`)
+    const res = await fetch(`${API_BASE}/rutinas/${id}`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function createRutina(data) {
     const res = await fetch(`${API_BASE}/rutinas`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
@@ -250,21 +282,24 @@ export async function createRutina(data) {
 export async function updateRutina(id, data) {
     const res = await fetch(`${API_BASE}/rutinas/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
 }
 
 export async function deleteRutina(id) {
-    const res = await fetch(`${API_BASE}/rutinas/${id}`, { method: 'DELETE' })
+    const res = await fetch(`${API_BASE}/rutinas/${id}`, { 
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    })
     return handleResponse(res)
 }
 
 export async function addEjercicioToRutina(rutinaId, data) {
     const res = await fetch(`${API_BASE}/rutinas/${rutinaId}/ejercicios`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
@@ -273,7 +308,7 @@ export async function addEjercicioToRutina(rutinaId, data) {
 export async function updateEjercicioInRutina(rutinaId, ejercicioId, data) {
     const res = await fetch(`${API_BASE}/rutinas/${rutinaId}/ejercicios/${ejercicioId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
@@ -281,27 +316,28 @@ export async function updateEjercicioInRutina(rutinaId, ejercicioId, data) {
 
 export async function deleteEjercicioFromRutina(rutinaId, ejercicioId) {
     const res = await fetch(`${API_BASE}/rutinas/${rutinaId}/ejercicios/${ejercicioId}`, { 
-        method: 'DELETE' 
+        method: 'DELETE',
+        headers: getAuthHeaders()
     })
     return handleResponse(res)
 }
 
 export async function getEstadisticasRutinas() {
-    const res = await fetch(`${API_BASE}/rutinas/estadisticas`)
+    const res = await fetch(`${API_BASE}/rutinas/estadisticas`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 // ============== ASIGNACIÓN DE RUTINAS A USUARIOS ==============
 
 export async function getRutinasUsuario(usuarioId) {
-    const res = await fetch(`${API_BASE}/usuarios/${usuarioId}/rutinas`)
+    const res = await fetch(`${API_BASE}/usuarios/${usuarioId}/rutinas`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function assignRutinaToUsuario(usuarioId, rutinaId, data = {}) {
     const res = await fetch(`${API_BASE}/usuarios/${usuarioId}/rutinas/${rutinaId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
@@ -310,7 +346,7 @@ export async function assignRutinaToUsuario(usuarioId, rutinaId, data = {}) {
 export async function updateAsignacionRutina(usuarioId, asignacionId, data) {
     const res = await fetch(`${API_BASE}/usuarios/${usuarioId}/rutinas/${asignacionId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
@@ -323,7 +359,7 @@ export async function getEntrenadores(filtros = {}) {
     // El filtrado se hace solo en el frontend
     const url = `${API_BASE}/entrenadores`
     console.log('🔗 URL llamada:', url)
-    const res = await fetch(url)
+    const res = await fetch(url, { headers: getAuthHeaders() })
     const data = await handleResponse(res)
     console.log('📦 Respuesta del backend:', data)
     console.log('📦 Total recibido:', Array.isArray(data) ? data.length : 0)
@@ -331,7 +367,7 @@ export async function getEntrenadores(filtros = {}) {
 }
 
 export async function getEntrenador(id) {
-    const res = await fetch(`${API_BASE}/entrenadores/${id}`)
+    const res = await fetch(`${API_BASE}/entrenadores/${id}`, { headers: getAuthHeaders() })
     const data = await handleResponse(res)
     return normalizarEntrenador(data)
 }
@@ -340,7 +376,7 @@ export async function createEntrenador(data) {
     console.log('📤 Enviando nuevo entrenador al backend:', data)
     const res = await fetch(`${API_BASE}/entrenadores`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     const result = await handleResponse(res)
@@ -353,7 +389,7 @@ export async function createEntrenador(data) {
 export async function updateEntrenador(id, data) {
     const res = await fetch(`${API_BASE}/entrenadores/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     const result = await handleResponse(res)
@@ -361,20 +397,23 @@ export async function updateEntrenador(id, data) {
 }
 
 export async function deleteEntrenador(id) {
-    const res = await fetch(`${API_BASE}/entrenadores/${id}`, { method: 'DELETE' })
+    const res = await fetch(`${API_BASE}/entrenadores/${id}`, { 
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    })
     return handleResponse(res)
 }
 
 // Horarios de entrenadores
 export async function getHorariosEntrenador(entrenadorId) {
-    const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/horarios`)
+    const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/horarios`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function createHorarioEntrenador(entrenadorId, data) {
     const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/horarios`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
@@ -382,21 +421,22 @@ export async function createHorarioEntrenador(entrenadorId, data) {
 
 export async function deleteHorarioEntrenador(entrenadorId, horarioId) {
     const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/horarios/${horarioId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
     })
     return handleResponse(res)
 }
 
 // Clientes de entrenadores
 export async function getClientesEntrenador(entrenadorId) {
-    const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/clientes`)
+    const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/clientes`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function asignarClienteEntrenador(entrenadorId, usuarioId, data = {}) {
     const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/clientes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ usuario_id: usuarioId, ...data }),
     })
     return handleResponse(res)
@@ -404,21 +444,22 @@ export async function asignarClienteEntrenador(entrenadorId, usuarioId, data = {
 
 export async function quitarClienteEntrenador(entrenadorId, usuarioId) {
     const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/clientes/${usuarioId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
     })
     return handleResponse(res)
 }
 
 // Sesiones de entrenadores
 export async function getSesionesEntrenador(entrenadorId) {
-    const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/sesiones`)
+    const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/sesiones`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function createSesionEntrenador(entrenadorId, data) {
     const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/sesiones`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
@@ -427,7 +468,7 @@ export async function createSesionEntrenador(entrenadorId, data) {
 export async function updateSesion(sesionId, data) {
     const res = await fetch(`${API_BASE}/sesiones/${sesionId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
@@ -435,14 +476,14 @@ export async function updateSesion(sesionId, data) {
 
 // Valoraciones de entrenadores
 export async function getValoracionesEntrenador(entrenadorId) {
-    const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/valoraciones`)
+    const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/valoraciones`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 
 export async function createValoracionEntrenador(entrenadorId, data) {
     const res = await fetch(`${API_BASE}/entrenadores/${entrenadorId}/valoraciones`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
     })
     return handleResponse(res)
@@ -450,7 +491,7 @@ export async function createValoracionEntrenador(entrenadorId, data) {
 
 // Estadísticas de entrenadores
 export async function getEstadisticasEntrenadores() {
-    const res = await fetch(`${API_BASE}/entrenadores/estadisticas`)
+    const res = await fetch(`${API_BASE}/entrenadores/estadisticas`, { headers: getAuthHeaders() })
     return handleResponse(res)
 }
 

@@ -57,6 +57,23 @@ import { useState, useEffect, useMemo } from 'react'
 import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts'
 import { pagosAPI } from '../services/api'
 
+// Función helper para obtener headers con autenticación
+function getAuthHeaders() {
+    try {
+        const session = localStorage.getItem('rg_session')
+        if (!session) return { 'Content-Type': 'application/json' }
+        const parsed = JSON.parse(session)
+        const token = parsed?.token || parsed?.user?.token
+        const headers = { 'Content-Type': 'application/json' }
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`
+        }
+        return headers
+    } catch (error) {
+        return { 'Content-Type': 'application/json' }
+    }
+}
+
 const COLORS = ['#48BB78', '#4299E1', '#9F7AEA', '#ED8936', '#F56565']
 
 export default function PagosTab() {
@@ -164,7 +181,9 @@ export default function PagosTab() {
             })
             
             // Cargar estadísticas de membresías
-            const estadisticasMembresiasData = await fetch('http://localhost:3001/pagos/estadisticas/membresias')
+            const estadisticasMembresiasData = await fetch('http://localhost:3001/pagos/estadisticas/membresias', {
+                headers: getAuthHeaders()
+            })
                 .then(r => r.ok ? r.json() : null)
                 .catch(err => {
                     console.error('❌ Error cargando estadísticas de membresías:', err)
@@ -172,7 +191,9 @@ export default function PagosTab() {
                 })
             
             // Cargar usuarios
-            const usuariosData = await fetch('http://localhost:3001/usuarios')
+            const usuariosData = await fetch('http://localhost:3001/usuarios', {
+                headers: getAuthHeaders()
+            })
                 .then(r => r.ok ? r.json() : [])
                 .catch(err => {
                     console.error('❌ Error cargando usuarios:', err)
@@ -180,7 +201,9 @@ export default function PagosTab() {
                 })
             
             // Cargar usuarios con membresías activas
-            const usuariosMembresiasActivasData = await fetch('http://localhost:3001/usuarios/membresias/activas')
+            const usuariosMembresiasActivasData = await fetch('http://localhost:3001/usuarios/membresias/activas', {
+                headers: getAuthHeaders()
+            })
                 .then(r => r.ok ? r.json() : { usuarios: [] })
                 .then(data => data.usuarios || [])
                 .catch(err => {
@@ -189,7 +212,9 @@ export default function PagosTab() {
                 })
             
             // Cargar productos
-            const productosData = await fetch('http://localhost:3001/productos')
+            const productosData = await fetch('http://localhost:3001/productos', {
+                headers: getAuthHeaders()
+            })
                 .then(r => r.ok ? r.json() : [])
                 .catch(err => {
                     console.error('❌ Error cargando productos:', err)
@@ -301,7 +326,7 @@ export default function PagosTab() {
             
             const response = await fetch('http://localhost:3001/pagos/renovar-membresia', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({
                     usuario_id: usuarioRenovar.id,
                     tipo_membresia: renovacionData.tipo_membresia,

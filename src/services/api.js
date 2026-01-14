@@ -1,11 +1,26 @@
 const API_BASE_URL = 'http://localhost:3001'
 
+// Obtener token de autenticación
+function getAuthToken() {
+    try {
+        const session = localStorage.getItem('rg_session')
+        if (!session) return null
+        const parsed = JSON.parse(session)
+        return parsed?.token || parsed?.user?.token || null
+    } catch (error) {
+        return null
+    }
+}
+
 // Función helper para hacer requests
 async function apiRequest(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`
+    const token = getAuthToken()
+    
     const config = {
         headers: {
             'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` }),
             ...options.headers,
         },
         ...options,

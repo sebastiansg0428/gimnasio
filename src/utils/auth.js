@@ -2,6 +2,19 @@
 
 const API_BASE = 'http://localhost:3001'
 
+// Obtener token de autenticación del localStorage
+export function getAuthToken() {
+    try {
+        const session = localStorage.getItem('rg_session')
+        if (!session) return null
+        const parsed = JSON.parse(session)
+        return parsed?.token || parsed?.user?.token || null
+    } catch (error) {
+        console.error('Error al obtener token:', error)
+        return null
+    }
+}
+
 async function handleResponse(res) {
     const contentType = res.headers.get('content-type') || ''
     let body = null
@@ -24,8 +37,13 @@ export async function registerUser({ name, email, password }) {
         body: JSON.stringify({ name, email, password }),
     })
     const body = await handleResponse(res)
-    // Store session using returned user (backend should return user or token)
-    localStorage.setItem('rg_session', JSON.stringify({ user: body }))
+    // Store session with user and token
+    const sessionData = {
+        user: body,
+        token: body.token || null
+    }
+    localStorage.setItem('rg_session', JSON.stringify(sessionData))
+    console.log('✅ Usuario registrado, token guardado:', body.token ? 'Sí' : 'No')
     return body
 }
 
@@ -36,7 +54,13 @@ export async function loginUser({ email, password }) {
         body: JSON.stringify({ email, password }),
     })
     const body = await handleResponse(res)
-    localStorage.setItem('rg_session', JSON.stringify({ user: body }))
+    // Store session with user and token
+    const sessionData = {
+        user: body,
+        token: body.token || null
+    }
+    localStorage.setItem('rg_session', JSON.stringify(sessionData))
+    console.log('✅ Login exitoso, token guardado:', body.token ? 'Sí' : 'No')
     return body
 }
 
