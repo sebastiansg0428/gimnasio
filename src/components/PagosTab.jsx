@@ -55,7 +55,7 @@ import {
 import { FiPlus, FiSearch, FiEye, FiTrash2, FiDollarSign, FiTrendingUp, FiCreditCard, FiFileText, FiRefreshCw, FiCalendar, FiFilter, FiPaperclip, FiEdit3 } from 'react-icons/fi'
 import { useState, useEffect, useMemo } from 'react'
 import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts'
-import { pagosAPI } from '../services/api'
+import { pagosAPI, usuariosAPI, productosAPI } from '../services/api'
 
 // Función helper para obtener headers con autenticación
 function getAuthHeaders() {
@@ -181,7 +181,7 @@ export default function PagosTab() {
             })
             
             console.log('📊 ESTADÍSTICAS RECIBIDAS DEL BACKEND:', estadisticasData)
-            console.log('💰 Total Ingresos:', estadisticasData?.totalIngresos)
+            console.log('💰 Total Ingresos:', estadisticasData?.ingresos_totales)
             
             // Cargar estadísticas de membresías
             const estadisticasMembresiasData = await pagosAPI.getEstadisticasMembresias().catch(err => {
@@ -225,6 +225,11 @@ export default function PagosTab() {
             setUsuarios(usuariosData)
             setUsuariosMembresiasActivas(usuariosMembresiasActivasData)
             setProductos(productosData)
+            
+            // 📊 DEBUG: Verificar estructura de estadísticas
+            console.log('📊 Estadísticas Membresías:', estadisticasMembresiasData)
+            console.log('📊 Estadísticas Productos:', estadisticasProductosData)
+            console.log('📊 Estadísticas Sesiones:', estadisticasSesionesData)
             
         } catch (error) {
             console.error('❌ ERROR CARGANDO DATOS:', error)
@@ -559,7 +564,7 @@ export default function PagosTab() {
 
     // 🔍 DEBUG: Ver datos antes de renderizar
     console.log('🎯 RENDERIZANDO - Estado estadisticas:', estadisticas)
-    console.log('💰 totalIngresos:', estadisticas?.totalIngresos)
+    console.log('💰 ingresos_totales:', estadisticas?.ingresos_totales)
 
     return (
         <Box>
@@ -607,32 +612,13 @@ export default function PagosTab() {
                         <Stat>
                             <StatLabel color="gray.600" fontSize="sm">Membresías Este Mes</StatLabel>
                             <StatNumber fontSize="3xl" color="purple.600">
-                                {(() => {
-                                    const ahora = new Date()
-                                    const mesActual = ahora.getMonth()
-                                    const añoActual = ahora.getFullYear()
-                                    const membresiasEsteMes = pagos.filter(p => {
-                                        if (p.tipo_pago !== 'membresia') return false
-                                        const fechaPago = new Date(p.fecha)
-                                        return fechaPago.getMonth() === mesActual && fechaPago.getFullYear() === añoActual
-                                    })
-                                    return estadisticasMembresias?.totalMembresias || membresiasEsteMes.length
-                                })()}
+                                {estadisticasMembresias?.activas || 0}
                             </StatNumber>
                             <StatHelpText>
-                                ${(() => {
-                                    const ahora = new Date()
-                                    const mesActual = ahora.getMonth()
-                                    const añoActual = ahora.getFullYear()
-                                    const ingresoEsteMes = pagos
-                                        .filter(p => {
-                                            if (p.tipo_pago !== 'membresia') return false
-                                            const fechaPago = new Date(p.fecha)
-                                            return fechaPago.getMonth() === mesActual && fechaPago.getFullYear() === añoActual
-                                        })
-                                        .reduce((sum, p) => sum + parseFloat(p.monto || 0), 0)
-                                    return (estadisticasMembresias?.ingresoTotal || ingresoEsteMes).toLocaleString('es-CO')
-                                })()}
+                                ${parseFloat(estadisticasMembresias?.ingresoActual || 0).toLocaleString('es-CO')}
+                            </StatHelpText>
+                            <StatHelpText>
+                                ${parseFloat(estadisticasMembresias?.ingresoActual || 0).toLocaleString('es-CO')}
                             </StatHelpText>
                         </Stat>
                     </CardBody>
@@ -643,7 +629,7 @@ export default function PagosTab() {
                         <Stat>
                             <StatLabel color="gray.600" fontSize="sm">Pendientes</StatLabel>
                             <StatNumber fontSize="3xl" color="orange.600">
-                                {pagos.filter(p => p.estado === 'pendiente').length}
+                                {estadisticas?.pagos_pendientes || pagos.filter(p => p.estado === 'pendiente').length}
                             </StatNumber>
                             <StatHelpText>
                                 ${pagos.filter(p => p.estado === 'pendiente').reduce((sum, p) => sum + parseFloat(p.monto || 0), 0).toLocaleString('es-CO')}
@@ -1071,7 +1057,7 @@ export default function PagosTab() {
                                         <Box p={4} bg="green.50" borderRadius="md">
                                             <Text fontSize="sm" color="gray.600" fontWeight="bold">Ingresos Totales</Text>
                                             <Text fontSize="2xl" color="green.600" fontWeight="bold">
-                                                ${(estadisticas?.totalIngresos || 
+                                                ${(parseFloat(estadisticas?.ingresos_totales || 0) || 
                                                    pagos.filter(p => p.estado === 'completado' || p.estado === 'pagado').reduce((sum, p) => sum + parseFloat(p.monto || 0), 0)
                                                 ).toLocaleString('es-CO')}
                                             </Text>

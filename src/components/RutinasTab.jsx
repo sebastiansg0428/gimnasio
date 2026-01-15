@@ -1077,39 +1077,41 @@ export default function RutinasTab() {
                                             .sort((a, b) => (a.orden || 0) - (b.orden || 0))
                                             .map((ej, idx) => (
                                             <AccordionItem key={idx} border="1px solid" borderColor="gray.200" mb={2} borderRadius="md">
-                                                <AccordionButton _expanded={{ bg: 'green.50' }}>
-                                                    <Box flex="1" textAlign="left">
-                                                        <HStack>
-                                                            <Badge colorScheme="green">{ej.orden || idx + 1}</Badge>
-                                                            <Text fontWeight="medium">{ej.nombre_ejercicio || ej.nombre || 'Ejercicio'}</Text>
-                                                            <Tag size="sm" colorScheme="blue">
-                                                                {ej.grupo_muscular}
-                                                            </Tag>
-                                                        </HStack>
-                                                    </Box>
-                                                    <HStack>
-                                                        <IconButton
-                                                            icon={<FiEdit />}
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                handleEditarEjercicio(rutinaDetalle, ej)
-                                                            }}
-                                                        />
-                                                        <IconButton
-                                                            icon={<FiTrash2 />}
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            colorScheme="red"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                handleEliminarEjercicio(rutinaDetalle.id, ej.ejercicio_id || ej.id)
-                                                            }}
-                                                        />
+                                                <HStack>
+                                                    <AccordionButton _expanded={{ bg: 'green.50' }} flex="1">
+                                                        <Box flex="1" textAlign="left">
+                                                            <HStack>
+                                                                <Badge colorScheme="green">{ej.orden || idx + 1}</Badge>
+                                                                <Text fontWeight="medium">{ej.nombre_ejercicio || ej.nombre || 'Ejercicio'}</Text>
+                                                                <Tag size="sm" colorScheme="blue">
+                                                                    {ej.grupo_muscular}
+                                                                </Tag>
+                                                            </HStack>
+                                                        </Box>
                                                         <AccordionIcon />
-                                                    </HStack>
-                                                </AccordionButton>
+                                                    </AccordionButton>
+                                                    <IconButton
+                                                        icon={<FiEdit />}
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleEditarEjercicio(rutinaDetalle, ej)
+                                                        }}
+                                                        mr={1}
+                                                    />
+                                                    <IconButton
+                                                        icon={<FiTrash2 />}
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        colorScheme="red"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleEliminarEjercicio(rutinaDetalle.id, ej.ejercicio_id || ej.id)
+                                                        }}
+                                                        mr={2}
+                                                    />
+                                                </HStack>
                                                 <AccordionPanel pb={4} bg="gray.50">
                                                     <Grid templateColumns="repeat(4, 1fr)" gap={4}>
                                                         <Box>
