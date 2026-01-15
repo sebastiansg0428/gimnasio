@@ -43,11 +43,13 @@ import PerfilTab from '../components/PerfilTab'
 import Footer from '../components/Footer'
 import EntrenadoresTab from '../components/EntrenadoresTab'
 import ProductosTab from '../components/ProductosTab'
+import ReportesTab from '../components/ReportesTab'
+import FacturasTab from '../components/FacturasTab'
 import { useNavigate } from 'react-router-dom'
 import { logout, getCurrentUser } from '../utils/auth'
-import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck, FiBox, FiTarget, FiTrendingUp, FiClock } from 'react-icons/fi'
+import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck, FiBox, FiTarget, FiTrendingUp, FiClock, FiFileText, FiBarChart2 } from 'react-icons/fi'
 import { useState, useEffect } from 'react'
-import { usuariosAPI, pagosAPI, dashboardAPI } from '../services/api'
+import { usuariosAPI, pagosAPI, dashboardAPI, reportesAPI } from '../services/api'
 
 // Componente para la vista general (Home)
 function HomeTab() {
@@ -160,9 +162,9 @@ function HomeTab() {
                 
                 // Cargar reportes adicionales en paralelo
                 const [membresiasVencer, usuariosInactivos, ingresos] = await Promise.all([
-                    dashboardAPI.getMembresiasPorVencer().catch(() => []),
-                    dashboardAPI.getUsuariosInactivos().catch(() => []),
-                    dashboardAPI.getReporteIngresosMensuales().catch(() => [])
+                    reportesAPI.getMembresiasPorVencer().catch(() => []),
+                    reportesAPI.getUsuariosInactivos().catch(() => []),
+                    reportesAPI.getIngresosMensuales().catch(() => [])
                 ])
                 
                 setIngresosMensuales(ingresos)
@@ -741,6 +743,30 @@ export default function Dashboard() {
                         Entrenadores
                     </Button>
                     <Button
+                        leftIcon={<FiBarChart2 />}
+                        w="full"
+                        justifyContent="start"
+                        variant={currentTab === 'reportes' ? 'solid' : 'ghost'}
+                        colorScheme={currentTab === 'reportes' ? 'green' : 'gray'}
+                        onClick={() => setCurrentTab('reportes')}
+                        _hover={{ bg: currentTab === 'reportes' ? 'green.500' : 'gray.100', transform: 'translateX(4px)' }}
+                        transition="all 0.2s"
+                    >
+                        Reportes
+                    </Button>
+                    <Button
+                        leftIcon={<FiFileText />}
+                        w="full"
+                        justifyContent="start"
+                        variant={currentTab === 'facturas' ? 'solid' : 'ghost'}
+                        colorScheme={currentTab === 'facturas' ? 'green' : 'gray'}
+                        onClick={() => setCurrentTab('facturas')}
+                        _hover={{ bg: currentTab === 'facturas' ? 'green.500' : 'gray.100', transform: 'translateX(4px)' }}
+                        transition="all 0.2s"
+                    >
+                        Facturas
+                    </Button>
+                    <Button
                         leftIcon={<FiUser />}
                         w="full"
                         justifyContent="start"
@@ -764,6 +790,8 @@ export default function Dashboard() {
                     {currentTab === 'estadisticas' && <EstadisticasTab />}
                     {currentTab === 'entrenadores' && <EntrenadoresTab />}
                     {currentTab === 'productos' && <ProductosTab />}
+                    {currentTab === 'reportes' && <ReportesTab />}
+                    {currentTab === 'facturas' && <FacturasTab />}
                     {currentTab === 'perfil' && <PerfilTab />}
                 </Box>
             </Flex>

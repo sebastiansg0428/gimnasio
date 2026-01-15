@@ -1,5 +1,5 @@
 // ClientesTab.jsx
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { usuariosAPI, authAPI, pagosAPI } from '../services/api'
 import { getRutinas, getRutinasUsuario, assignRutinaToUsuario } from '../utils/api'
 import {
@@ -455,111 +455,121 @@ export default function ClientesTab() {
         return () => clearTimeout(t)
     }, [inputValue])
 
-    // Obtener usuarios y estadísticas desde backend
-    useEffect(() => {
-        let mounted = true
+    const [isLoading, setIsLoading] = useState(false)
 
-        async function fetchUsuarios() {
+    // Función para obtener usuarios (reutilizable y memoizada)
+    const fetchUsuarios = useCallback(async () => {
+        setIsLoading(true)
+        try {
+            console.log('🔄 INICIANDO CARGA DE USUARIOS...')
+            console.log('📊 FILTROS ACTUALES:', { filtroEstado, filtroMembresia, filtroVencidas })
+            
+            // Construir filtros para la petición
+            const filtros = {}
+            if (filtroEstado !== 'todos') filtros.estado = filtroEstado
+            if (filtroMembresia !== 'todos') filtros.membresia = filtroMembresia
+            if (filtroVencidas) filtros.vencidas = 'true'
+            
+            console.log('📤 FILTROS ENVIADOS AL BACKEND:', filtros)
+            
+            // Obtener usuarios con filtros
+            const usuarios = await usuariosAPI.getUsuarios(filtros)
+            console.log('✅ USUARIOS RECIBIDOS DEL BACKEND:', usuarios)
+            console.log('📊 CANTIDAD DE USUARIOS:', usuarios?.length || 0)
+            
+            // Cargar estadísticas del backend
             try {
-                console.log('🔄 INICIANDO CARGA DE USUARIOS...')
-                console.log('📊 FILTROS ACTUALES:', { filtroEstado, filtroMembresia, filtroVencidas })
-                
-                // Construir filtros para la petición
-                const filtros = {}
-                if (filtroEstado !== 'todos') filtros.estado = filtroEstado
-                if (filtroMembresia !== 'todos') filtros.membresia = filtroMembresia
-                if (filtroVencidas) filtros.vencidas = 'true'
-                
-                console.log('📤 FILTROS ENVIADOS AL BACKEND:', filtros)
-                
-                // Obtener usuarios con filtros
-                const usuarios = await usuariosAPI.getUsuarios(filtros)
-                console.log('✅ USUARIOS RECIBIDOS DEL BACKEND:', usuarios)
-                console.log('📊 CANTIDAD DE USUARIOS:', usuarios?.length || 0)
-                
-                // Cargar estadísticas del backend
-                try {
-                    const stats = await usuariosAPI.getEstadisticas()
-                    console.log('📊 ESTADÍSTICAS RECIBIDAS:', stats)
-                    if (mounted) setEstadisticas(stats)
-                } catch (statsError) {
-                    console.error('⚠️ Error cargando estadísticas:', statsError)
-                }
-                
-                // Cargar todos los pagos de membresía
-                try {
-                    const pagos = await pagosAPI.getPagos({ tipo_pago: 'membresia' })
-                    console.log('💳 PAGOS RECIBIDOS:', pagos?.length || 0)
-                    
-                    // Crear mapa de último pago por usuario
-                    const pagosporUsuario = {}
-                    if (Array.isArray(pagos)) {
-                        pagos.forEach(pago => {
-                            const userId = pago.usuario_id
-                            if (!pagosporUsuario[userId] || new Date(pago.fecha_pago) > new Date(pagosporUsuario[userId].fecha_pago)) {
-                                pagosporUsuario[userId] = pago
-                            }
-                        })
-                    }
-                    
-                    if (mounted) setPagosMap(pagosporUsuario)
-                } catch (pagosError) {
-                    console.warn('⚠️ Error cargando pagos:', pagosError)
-                    if (mounted) setPagosMap({})
-                }
-                
-                // Mapear usuarios a formato correcto según la base de datos
-                const clientesDeUsuarios = (usuarios || []).map((user) => ({
-                    id: user.id,
-                    nombre: user.nombre || '',
-                    apellido: user.apellido || '',
-                    email: user.email || '',
-                    telefono: user.telefono || '',
-                    fecha_nacimiento: user.fecha_nacimiento || null,
-                    genero: user.genero || '',
-                    membresia: (user.membresia || 'DIARIA').toUpperCase(),
-                    estado: user.estado || 'activo',
-                    fecha_vencimiento: user.fecha_vencimiento || null,
-                    fecha_inicio_membresia: user.fecha_inicio_membresia || null,
-                    precio_membresia: user.precio_membresia || 0,
-                    ultima_visita: user.ultima_visita || null,
-                    total_visitas: user.total_visitas || 0,
-                    created_at: user.created_at || null,
-                    updated_at: user.updated_at || null,
-                }))
-
-                console.log('✅ CLIENTES MAPEADOS:', clientesDeUsuarios.length)
-                console.log('📋 PRIMER CLIENTE (EJEMPLO):', clientesDeUsuarios[0])
-                
-                if (mounted) {
-                    setClientes(clientesDeUsuarios)
-                    console.log('✅ ESTADO ACTUALIZADO CON', clientesDeUsuarios.length, 'CLIENTES')
-                }
-            } catch (e) {
-                console.error('❌ ERROR CARGANDO USUARIOS:', e)
-                console.error('❌ DETALLES DEL ERROR:', e.message)
-                console.error('❌ STACK:', e.stack)
-                if (mounted) setClientes([])
-                
-                toast({
-                    title: '❌ Error al cargar clientes',
-                    description: e.message || 'Verifica que el backend esté corriendo en http://localhost:3001',
-                    status: 'error',
-                    duration: 5000,
-                    isClosable: true
-                })
+                const stats = await usuariosAPI.getEstadisticas()
+                console.log('📊 ESTADÍSTICAS RECIBIDAS:', stats)
+                setEstadisticas(stats)
+            } catch (statsError) {
+                console.error('⚠️ Error cargando estadísticas:', statsError)
             }
-        }
+            
+            // Cargar todos los pagos de membresía
+            try {
+                const pagos = await pagosAPI.getPagos({ tipo_pago: 'membresia' })
+                console.log('💳 PAGOS RECIBIDOS:', pagos?.length || 0)
+                
+                // Crear mapa de último pago por usuario
+                const pagosporUsuario = {}
+                if (Array.isArray(pagos)) {
+                    pagos.forEach(pago => {
+                        const userId = pago.usuario_id
+                        if (!pagosporUsuario[userId] || new Date(pago.fecha_pago) > new Date(pagosporUsuario[userId].fecha_pago)) {
+                            pagosporUsuario[userId] = pago
+                        }
+                    })
+                }
+                
+                setPagosMap(pagosporUsuario)
+            } catch (pagosError) {
+                console.warn('⚠️ Error cargando pagos:', pagosError)
+                setPagosMap({})
+            }
+            
+            // Mapear usuarios a formato correcto según la base de datos
+            const clientesDeUsuarios = (usuarios || []).map((user) => ({
+                id: user.id,
+                nombre: user.nombre || '',
+                apellido: user.apellido || '',
+                email: user.email || '',
+                telefono: user.telefono || '',
+                fecha_nacimiento: user.fecha_nacimiento || null,
+                genero: user.genero || '',
+                membresia: (user.membresia || 'DIARIA').toUpperCase(),
+                estado: user.estado || 'activo',
+                fecha_vencimiento: user.fecha_vencimiento || null,
+                fecha_inicio_membresia: user.fecha_inicio_membresia || null,
+                precio_membresia: user.precio_membresia || 0,
+                ultima_visita: user.ultima_visita || null,
+                total_visitas: user.total_visitas || 0,
+                created_at: user.created_at || null,
+                updated_at: user.updated_at || null,
+            }))
 
-        console.log('🚀 COMPONENTE MONTADO - INICIANDO CARGA DE USUARIOS')
+            console.log('✅ CLIENTES MAPEADOS:', clientesDeUsuarios.length)
+            console.log('📋 PRIMER CLIENTE (EJEMPLO):', clientesDeUsuarios[0])
+            
+            setClientes(clientesDeUsuarios)
+            console.log('✅ ESTADO ACTUALIZADO CON', clientesDeUsuarios.length, 'CLIENTES')
+        } catch (e) {
+            console.error('❌ ERROR CARGANDO USUARIOS:', e)
+            console.error('❌ DETALLES DEL ERROR:', e.message)
+            console.error('❌ STACK:', e.stack)
+            setClientes([])
+            
+            toast({
+                title: '❌ Error al cargar clientes',
+                description: e.message || 'Verifica que el backend esté corriendo en http://localhost:3001',
+                status: 'error',
+                duration: 5000,
+                isClosable: true
+            })
+        } finally {
+            setIsLoading(false)
+        }
+    }, [filtroEstado, filtroMembresia, filtroVencidas, toast])
+
+    // Cargar datos cuando cambian los filtros (sin interval)
+    useEffect(() => {
+        console.log('🔄 FILTROS CAMBIARON - CARGANDO DATOS')
         fetchUsuarios()
-        const interval = setInterval(fetchUsuarios, 5000)
+    }, [filtroEstado, filtroMembresia, filtroVencidas])
+
+    // Actualización automática cada 30 segundos (solo una vez al montar)
+    useEffect(() => {
+        console.log('🚀 COMPONENTE MONTADO - CONFIGURANDO ACTUALIZACIÓN AUTOMÁTICA')
+        const interval = setInterval(() => {
+            console.log('⏱️ ACTUALIZACIÓN AUTOMÁTICA - 30 segundos')
+            fetchUsuarios()
+        }, 30000) // 30 segundos en lugar de 5
+        
         return () => { 
             console.log('🛑 COMPONENTE DESMONTADO - LIMPIANDO INTERVAL')
-            mounted = false
             clearInterval(interval) 
         }
-    }, [filtroEstado, filtroMembresia, filtroVencidas])
+    }, [fetchUsuarios]) // fetchUsuarios memoizado evita recreación del interval
 
     // Filtrar clientes solo por búsqueda (los filtros de estado/membresía ya se aplicaron en el backend)
     const clientesFiltrados = clientes.filter((cliente) => {
@@ -799,75 +809,9 @@ export default function ClientesTab() {
     }
 
     const refrescarDatos = async () => {
-        try {
-            console.log('📡 OBTENIENDO USUARIOS DEL BACKEND...')
-            
-            // Construir filtros según estado actual
-            const filtros = {}
-            if (filtroEstado !== 'todos') filtros.estado = filtroEstado
-            if (filtroMembresia !== 'todos') filtros.membresia = filtroMembresia
-            if (filtroVencidas) filtros.vencidas = 'true'
-            
-            const usuarios = await usuariosAPI.getUsuarios(filtros)
-            console.log('✅ USUARIOS OBTENIDOS:', usuarios.length, 'usuarios')
-            console.log('📊 ESTADOS:', usuarios.map(u => ({ id: u.id, nombre: u.nombre, estado: u.estado })))
-            
-            // Cargar estadísticas
-            try {
-                const stats = await usuariosAPI.getEstadisticas()
-                setEstadisticas(stats)
-                console.log('📊 ESTADÍSTICAS CARGADAS:', stats)
-            } catch (statsError) {
-                console.error('Error cargando estadísticas:', statsError)
-            }
-            
-            // Cargar todos los pagos de membresía
-            const pagos = await pagosAPI.getPagos({ tipo_pago: 'membresia' })
-            console.log('💳 PAGOS CARGADOS:', pagos.length)
-            console.log('📊 DETALLE PAGOS:', pagos.map(p => ({ id: p.id, usuario_id: p.usuario_id, estado: p.estado, monto: p.monto })))
-            
-            // Crear mapa de último pago por usuario (excluir solo cancelados/fallidos)
-            const pagosporUsuario = {}
-            if (Array.isArray(pagos)) {
-                pagos.forEach(pago => {
-                    const userId = pago.usuario_id
-                    const estado = (pago.estado || '').toLowerCase()
-                    // Incluir todos los estados excepto cancelado y fallido
-                    if (estado !== 'cancelado' && estado !== 'fallido') {
-                        if (!pagosporUsuario[userId] || new Date(pago.fecha_pago) > new Date(pagosporUsuario[userId].fecha_pago)) {
-                            pagosporUsuario[userId] = pago
-                        }
-                    }
-                })
-            }
-            console.log('🗺️ MAPA DE PAGOS:', Object.keys(pagosporUsuario).length, 'usuarios con pagos válidos')
-            
-            setPagosMap(pagosporUsuario)
-            
-            const clientesDeUsuarios = (usuarios || []).map((user) => ({
-                id: user.id,
-                nombre: user.nombre || '',
-                apellido: user.apellido || '',
-                email: user.email || '',
-                telefono: user.telefono || '',
-                fecha_nacimiento: user.fecha_nacimiento || null,
-                genero: user.genero || '',
-                membresia: (user.membresia || 'DIARIA').toUpperCase(),
-                estado: user.estado || 'activo',
-                fecha_vencimiento: user.fecha_vencimiento || null,
-                precio_membresia: user.precio_membresia || 0,
-                ultima_visita: user.ultima_visita || null,
-                total_visitas: user.total_visitas || 0,
-                created_at: user.created_at || null,
-                updated_at: user.updated_at || null,
-            }))
-            setClientes(clientesDeUsuarios)
-            console.log('✅ CLIENTES ACTUALIZADOS EN EL ESTADO')
-            toast({ title: '✅ Datos actualizados', status: 'success', duration: 1500 })
-        } catch (err) {
-            console.error('Error refrescando datos:', err)
-            toast({ title: 'Error al actualizar', description: err.message, status: 'error', duration: 2000 })
-        }
+        console.log('🔄 ACTUALIZACIÓN MANUAL')
+        await fetchUsuarios()
+        toast({ title: '✅ Datos actualizados', status: 'success', duration: 1500 })
     }
 
     return (
@@ -977,6 +921,8 @@ export default function ClientesTab() {
                     variant="outline"
                     _hover={{ transform: 'translateY(-2px)', boxShadow: 'md' }}
                     onClick={refrescarDatos}
+                    isLoading={isLoading}
+                    loadingText="Actualizando..."
                 >
                     Actualizar
                 </Button>

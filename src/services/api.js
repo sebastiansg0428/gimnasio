@@ -162,11 +162,61 @@ export const pagosAPI = {
 
 // DASHBOARD
 export const dashboardAPI = {
-    getDashboard: () => apiRequest('/dashboard'),
-    getReporteIngresosMensuales: () => apiRequest('/reportes/ingresos-mensuales'),
-    getReporteUsuariosNuevos: () => apiRequest('/reportes/usuarios-nuevos-mensuales'),
+    getDashboard: () => apiRequest('/dashboard')
+}
+
+// REPORTES
+export const reportesAPI = {
+    getIngresosMensuales: () => apiRequest('/reportes/ingresos-mensuales'),
+    getUsuariosNuevos: () => apiRequest('/reportes/usuarios-nuevos-mensuales'),
     getProductosMasVendidos: () => apiRequest('/reportes/productos-mas-vendidos'),
     getRutinasPopulares: () => apiRequest('/reportes/rutinas-populares'),
     getMembresiasPorVencer: () => apiRequest('/reportes/usuarios-con-membresia-por-vencer'),
-    getUsuariosInactivos: () => apiRequest('/reportes/usuarios-inactivos')
+    getUsuariosInactivos: () => apiRequest('/reportes/usuarios-inactivos'),
+    getVentasPorUsuario: () => apiRequest('/reportes/ventas-por-usuario'),
+    getVentasPorProducto: () => apiRequest('/reportes/ventas-por-producto')
+}
+
+// FACTURAS
+export const facturasAPI = {
+    getFacturas: (filtros = {}) => {
+        const params = new URLSearchParams(filtros)
+        const query = params.toString()
+        return apiRequest(query ? `/facturas?${query}` : '/facturas')
+    },
+    getFactura: (id) => apiRequest(`/facturas/${id}`),
+    createFactura: (data) => apiRequest('/facturas', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    updateFactura: (id, data) => apiRequest(`/facturas/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    }),
+    deleteFactura: (id) => apiRequest(`/facturas/${id}`, { method: 'DELETE' })
+}
+
+// RBAC
+export const rbacAPI = {
+    getRoles: () => apiRequest('/rbac/roles'),
+    getPermisos: () => apiRequest('/rbac/permisos'),
+    getRolPermisos: (rolNombre) => apiRequest(`/rbac/roles/${rolNombre}/permisos`),
+    getUsuarioRoles: (id) => apiRequest(`/rbac/usuarios/${id}/roles`),
+    asignarRol: (id, rolNombre) => apiRequest(`/rbac/usuarios/${id}/roles`, {
+        method: 'POST',
+        body: JSON.stringify({ rol: rolNombre })
+    }),
+    revocarRol: (id, rolNombre) => apiRequest(`/rbac/usuarios/${id}/roles/${rolNombre}`, {
+        method: 'DELETE'
+    }),
+    createRol: (data) => apiRequest('/rbac/roles', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    createPermiso: (data) => apiRequest('/rbac/permisos', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    getEstadisticas: () => apiRequest('/rbac/estadisticas'),
+    getMe: () => apiRequest('/me')
 }

@@ -180,6 +180,9 @@ export default function PagosTab() {
                 return null
             })
             
+            console.log('📊 ESTADÍSTICAS RECIBIDAS DEL BACKEND:', estadisticasData)
+            console.log('💰 Total Ingresos:', estadisticasData?.totalIngresos)
+            
             // Cargar estadísticas de membresías
             const estadisticasMembresiasData = await fetch('http://localhost:3001/pagos/estadisticas/membresias', {
                 headers: getAuthHeaders()
@@ -569,6 +572,10 @@ export default function PagosTab() {
         )
     }
 
+    // 🔍 DEBUG: Ver datos antes de renderizar
+    console.log('🎯 RENDERIZANDO - Estado estadisticas:', estadisticas)
+    console.log('💰 totalIngresos:', estadisticas?.totalIngresos)
+
     return (
         <Box>
             {/* Tarjetas de Estadísticas */}
@@ -578,7 +585,15 @@ export default function PagosTab() {
                         <Stat>
                             <StatLabel color="gray.600" fontSize="sm">Total Ingresos</StatLabel>
                             <StatNumber fontSize="3xl" color="green.600">
-                                ${(estadisticas?.totalIngresos || 0).toLocaleString('es-CO')}
+                                ${(() => {
+                                    // Usar el campo correcto del backend: ingresos_totales
+                                    const ingresoBackend = parseFloat(estadisticas?.ingresos_totales || 0)
+                                    // Calcular localmente como respaldo
+                                    const ingresoLocal = pagos
+                                        .filter(p => p.estado === 'completado' || p.estado === 'pagado')
+                                        .reduce((sum, p) => sum + parseFloat(p.monto || 0), 0)
+                                    return (ingresoBackend || ingresoLocal).toLocaleString('es-CO')
+                                })()}
                             </StatNumber>
                             <StatHelpText>
                                 <StatArrow type="increase" />
@@ -593,10 +608,10 @@ export default function PagosTab() {
                         <Stat>
                             <StatLabel color="gray.600" fontSize="sm">Total Pagos</StatLabel>
                             <StatNumber fontSize="3xl" color="blue.600">
-                                {estadisticas?.totalPagos || pagos.length}
+                                {estadisticas?.total_pagos || pagos.length}
                             </StatNumber>
                             <StatHelpText>
-                                <Badge colorScheme="green">{pagos.filter(p => p.estado === 'completado' || p.estado === 'pagado').length} completados</Badge>
+                                <Badge colorScheme="green">{estadisticas?.pagos_completados || pagos.filter(p => p.estado === 'completado' || p.estado === 'pagado').length} completados</Badge>
                             </StatHelpText>
                         </Stat>
                     </CardBody>
@@ -607,10 +622,32 @@ export default function PagosTab() {
                         <Stat>
                             <StatLabel color="gray.600" fontSize="sm">Membresías Este Mes</StatLabel>
                             <StatNumber fontSize="3xl" color="purple.600">
-                                {estadisticasMembresias?.totalMembresias || pagos.filter(p => p.tipo_pago === 'membresia').length}
+                                {(() => {
+                                    const ahora = new Date()
+                                    const mesActual = ahora.getMonth()
+                                    const añoActual = ahora.getFullYear()
+                                    const membresiasEsteMes = pagos.filter(p => {
+                                        if (p.tipo_pago !== 'membresia') return false
+                                        const fechaPago = new Date(p.fecha)
+                                        return fechaPago.getMonth() === mesActual && fechaPago.getFullYear() === añoActual
+                                    })
+                                    return estadisticasMembresias?.totalMembresias || membresiasEsteMes.length
+                                })()}
                             </StatNumber>
                             <StatHelpText>
-                                ${(estadisticasMembresias?.ingresoTotal || 0).toLocaleString('es-CO')}
+                                ${(() => {
+                                    const ahora = new Date()
+                                    const mesActual = ahora.getMonth()
+                                    const añoActual = ahora.getFullYear()
+                                    const ingresoEsteMes = pagos
+                                        .filter(p => {
+                                            if (p.tipo_pago !== 'membresia') return false
+                                            const fechaPago = new Date(p.fecha)
+                                            return fechaPago.getMonth() === mesActual && fechaPago.getFullYear() === añoActual
+                                        })
+                                        .reduce((sum, p) => sum + parseFloat(p.monto || 0), 0)
+                                    return (estadisticasMembresias?.ingresoTotal || ingresoEsteMes).toLocaleString('es-CO')
+                                })()}
                             </StatHelpText>
                         </Stat>
                     </CardBody>

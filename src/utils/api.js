@@ -495,6 +495,91 @@ export async function getEstadisticasEntrenadores() {
     return handleResponse(res)
 }
 
+// ============================================
+// REPORTES
+// ============================================
+export async function getIngresosMensuales() {
+    const res = await fetch(`${API_BASE}/reportes/ingresos-mensuales`, { headers: getAuthHeaders() })
+    return handleResponse(res)
+}
+
+export async function getUsuariosNuevosMensuales() {
+    const res = await fetch(`${API_BASE}/reportes/usuarios-nuevos-mensuales`, { headers: getAuthHeaders() })
+    return handleResponse(res)
+}
+
+export async function getProductosMasVendidos() {
+    const res = await fetch(`${API_BASE}/reportes/productos-mas-vendidos`, { headers: getAuthHeaders() })
+    return handleResponse(res)
+}
+
+export async function getRutinasPopulares() {
+    const res = await fetch(`${API_BASE}/reportes/rutinas-populares`, { headers: getAuthHeaders() })
+    return handleResponse(res)
+}
+
+export async function getMembresiasPorVencer() {
+    const res = await fetch(`${API_BASE}/reportes/usuarios-con-membresia-por-vencer`, { headers: getAuthHeaders() })
+    return handleResponse(res)
+}
+
+export async function getUsuariosInactivos() {
+    const res = await fetch(`${API_BASE}/reportes/usuarios-inactivos`, { headers: getAuthHeaders() })
+    return handleResponse(res)
+}
+
+export async function getVentasPorUsuario() {
+    const res = await fetch(`${API_BASE}/reportes/ventas-por-usuario`, { headers: getAuthHeaders() })
+    return handleResponse(res)
+}
+
+export async function getVentasPorProducto() {
+    const res = await fetch(`${API_BASE}/reportes/ventas-por-producto`, { headers: getAuthHeaders() })
+    return handleResponse(res)
+}
+
+// ============================================
+// FACTURAS
+// ============================================
+export async function getFacturas(filtros = {}) {
+    const params = new URLSearchParams(filtros)
+    const query = params.toString()
+    const url = query ? `${API_BASE}/facturas?${query}` : `${API_BASE}/facturas`
+    const res = await fetch(url, { headers: getAuthHeaders() })
+    return handleResponse(res)
+}
+
+export async function getFactura(id) {
+    const res = await fetch(`${API_BASE}/facturas/${id}`, { headers: getAuthHeaders() })
+    return handleResponse(res)
+}
+
+export async function createFactura(data) {
+    const res = await fetch(`${API_BASE}/facturas`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+    })
+    return handleResponse(res)
+}
+
+export async function updateFactura(id, data) {
+    const res = await fetch(`${API_BASE}/facturas/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+    })
+    return handleResponse(res)
+}
+
+export async function deleteFactura(id) {
+    const res = await fetch(`${API_BASE}/facturas/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+    })
+    return handleResponse(res)
+}
+
 export default {
     getProductos,
     getProducto,
