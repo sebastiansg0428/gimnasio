@@ -157,7 +157,29 @@ export const pagosAPI = {
         method: 'POST',
         body: JSON.stringify(data)
     }),
-    getEstadisticas: () => apiRequest('/pagos/estadisticas')
+    getEstadisticas: () => apiRequest('/pagos/estadisticas'),
+    getEstadisticasMembresias: () => apiRequest('/pagos/estadisticas/membresias'),
+    getEstadisticasProductos: () => apiRequest('/pagos/estadisticas/productos'),
+    getEstadisticasSesiones: () => apiRequest('/pagos/estadisticas/sesiones')
+}
+
+// SESIONES
+export const sesionesAPI = {
+    getSesiones: (filtros = {}) => {
+        const params = new URLSearchParams(filtros)
+        const query = params.toString()
+        return apiRequest(query ? `/sesiones?${query}` : '/sesiones')
+    },
+    getSesion: (id) => apiRequest(`/sesiones/${id}`),
+    createSesion: (data) => apiRequest('/sesiones', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    updateSesion: (id, data) => apiRequest(`/sesiones/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    }),
+    deleteSesion: (id) => apiRequest(`/sesiones/${id}`, { method: 'DELETE' })
 }
 
 // DASHBOARD

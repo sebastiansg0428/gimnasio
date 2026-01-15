@@ -184,45 +184,40 @@ export default function PagosTab() {
             console.log('💰 Total Ingresos:', estadisticasData?.totalIngresos)
             
             // Cargar estadísticas de membresías
-            const estadisticasMembresiasData = await fetch('http://localhost:3001/pagos/estadisticas/membresias', {
-                headers: getAuthHeaders()
+            const estadisticasMembresiasData = await pagosAPI.getEstadisticasMembresias().catch(err => {
+                console.error('❌ Error cargando estadísticas de membresías:', err)
+                return null
             })
-                .then(r => r.ok ? r.json() : null)
-                .catch(err => {
-                    console.error('❌ Error cargando estadísticas de membresías:', err)
-                    return null
-                })
+            
+            // Cargar estadísticas de productos
+            const estadisticasProductosData = await pagosAPI.getEstadisticasProductos().catch(err => {
+                console.error('❌ Error cargando estadísticas de productos:', err)
+                return null
+            })
+            
+            // Cargar estadísticas de sesiones
+            const estadisticasSesionesData = await pagosAPI.getEstadisticasSesiones().catch(err => {
+                console.error('❌ Error cargando estadísticas de sesiones:', err)
+                return null
+            })
             
             // Cargar usuarios
-            const usuariosData = await fetch('http://localhost:3001/usuarios', {
-                headers: getAuthHeaders()
+            const usuariosData = await usuariosAPI.getUsuarios().catch(err => {
+                console.error('❌ Error cargando usuarios:', err)
+                return []
             })
-                .then(r => r.ok ? r.json() : [])
-                .catch(err => {
-                    console.error('❌ Error cargando usuarios:', err)
-                    return []
-                })
             
-            // Cargar usuarios con membresías activas
-            const usuariosMembresiasActivasData = await fetch('http://localhost:3001/usuarios/membresias/activas', {
-                headers: getAuthHeaders()
+            // Cargar usuarios con membresías activas (si el endpoint existe)
+            const usuariosMembresiasActivasData = await usuariosAPI.getUsuarios({ estado: 'activo' }).catch(err => {
+                console.error('❌ Error cargando usuarios activos:', err)
+                return []
             })
-                .then(r => r.ok ? r.json() : { usuarios: [] })
-                .then(data => data.usuarios || [])
-                .catch(err => {
-                    console.error('❌ Error cargando usuarios con membresías activas:', err)
-                    return []
-                })
             
             // Cargar productos
-            const productosData = await fetch('http://localhost:3001/productos', {
-                headers: getAuthHeaders()
+            const productosData = await productosAPI.getProductos().catch(err => {
+                console.error('❌ Error cargando productos:', err)
+                return []
             })
-                .then(r => r.ok ? r.json() : [])
-                .catch(err => {
-                    console.error('❌ Error cargando productos:', err)
-                    return []
-                })
 
             setPagos(pagosData)
             setEstadisticas(estadisticasData)
@@ -327,22 +322,12 @@ export default function PagosTab() {
         try {
             console.log('🔄 RENOVANDO MEMBRESÍA PARA:', usuarioRenovar.nombre)
             
-            const response = await fetch('http://localhost:3001/pagos/renovar-membresia', {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify({
-                    usuario_id: usuarioRenovar.id,
-                    tipo_membresia: renovacionData.tipo_membresia,
-                    monto: renovacionData.monto,
-                    metodo_pago: renovacionData.metodo_pago
-                })
+            const resultado = await pagosAPI.renovarMembresia({
+                usuario_id: usuarioRenovar.id,
+                tipo_membresia: renovacionData.tipo_membresia,
+                monto: renovacionData.monto,
+                metodo_pago: renovacionData.metodo_pago
             })
-
-            if (!response.ok) {
-                throw new Error('Error al renovar membresía')
-            }
-
-            const resultado = await response.json()
             
             toast({
                 title: '✅ Membresía renovada',

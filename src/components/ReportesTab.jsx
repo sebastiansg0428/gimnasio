@@ -215,14 +215,15 @@ export default function ReportesTab() {
                     <TabPanel>
                         <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
                             {/* Gráfico de línea de ingresos mensuales */}
-                            <Card>
+                            <Card minH="400px">
                                 <CardHeader>
                                     <Heading size="md">Ingresos Mensuales</Heading>
                                 </CardHeader>
                                 <CardBody>
                                     {ingresosMensuales.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height={300}>
-                                            <AreaChart data={ingresosMensuales}>
+                                        <Box h="300px" w="100%">
+                                            <ResponsiveContainer width="100%" height={300}>
+                                                <AreaChart data={ingresosMensuales}>
                                                 <defs>
                                                     <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
                                                         <stop offset="5%" stopColor="#48BB78" stopOpacity={0.8}/>
@@ -234,8 +235,9 @@ export default function ReportesTab() {
                                                 <YAxis />
                                                 <Tooltip formatter={(value) => `$${parseFloat(value).toLocaleString('es-CO')}`} />
                                                 <Area type="monotone" dataKey="total_ingresos" stroke="#48BB78" fillOpacity={1} fill="url(#colorIngresos)" />
-                                            </AreaChart>
-                                        </ResponsiveContainer>
+                                                </AreaChart>
+                                            </ResponsiveContainer>
+                                        </Box>
                                     ) : (
                                         <Center h="200px">
                                             <Text color="gray.500">No hay datos de ingresos</Text>
@@ -245,14 +247,15 @@ export default function ReportesTab() {
                             </Card>
 
                             {/* Ventas por producto */}
-                            <Card>
+                            <Card minH="400px">
                                 <CardHeader>
                                     <Heading size="md">Ventas por Producto</Heading>
                                 </CardHeader>
                                 <CardBody>
                                     {ventasPorProducto.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height={300}>
-                                            <PieChart>
+                                        <Box h="300px" w="100%">
+                                            <ResponsiveContainer width="100%" height={300}>
+                                                <PieChart>
                                                 <Pie
                                                     data={ventasPorProducto.slice(0, 5)}
                                                     dataKey="total_vendido"
@@ -269,6 +272,7 @@ export default function ReportesTab() {
                                                 <Tooltip />
                                             </PieChart>
                                         </ResponsiveContainer>
+                                        </Box>
                                     ) : (
                                         <Center h="200px">
                                             <Text color="gray.500">No hay datos de ventas</Text>
@@ -316,22 +320,24 @@ export default function ReportesTab() {
 
                     {/* Tab: Usuarios */}
                     <TabPanel>
-                        <Card>
+                        <Card minH="500px">
                             <CardHeader>
                                 <Heading size="md">Usuarios Nuevos por Mes</Heading>
                             </CardHeader>
                             <CardBody>
                                 {usuariosNuevos.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height={400}>
-                                        <BarChart data={usuariosNuevos}>
+                                    <Box h="400px" w="100%">
+                                        <ResponsiveContainer width="100%" height={400}>
+                                            <BarChart data={usuariosNuevos}>
                                             <CartesianGrid strokeDasharray="3 3" />
                                             <XAxis dataKey="mes" />
                                             <YAxis />
                                             <Tooltip />
                                             <Legend />
                                             <Bar dataKey="total_usuarios" name="Usuarios Nuevos" fill="#4299E1" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </Box>
                                 ) : (
                                     <Center h="300px">
                                         <Text color="gray.500">No hay datos de usuarios nuevos</Text>
@@ -343,22 +349,24 @@ export default function ReportesTab() {
 
                     {/* Tab: Productos */}
                     <TabPanel>
-                        <Card>
+                        <Card minH="500px">
                             <CardHeader>
                                 <Heading size="md">Productos Más Vendidos</Heading>
                             </CardHeader>
                             <CardBody>
                                 {productosMasVendidos.length > 0 ? (
                                     <>
-                                        <ResponsiveContainer width="100%" height={400}>
-                                            <BarChart data={productosMasVendidos} layout="vertical">
+                                        <Box h="400px" w="100%">
+                                            <ResponsiveContainer width="100%" height={400}>
+                                                <BarChart data={productosMasVendidos} layout="vertical">
                                                 <CartesianGrid strokeDasharray="3 3" />
                                                 <XAxis type="number" />
                                                 <YAxis dataKey="nombre" type="category" width={150} />
                                                 <Tooltip />
                                                 <Bar dataKey="total_vendido" fill="#9F7AEA" />
-                                            </BarChart>
-                                        </ResponsiveContainer>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </Box>
 
                                         <Table variant="simple" mt={6}>
                                             <Thead>

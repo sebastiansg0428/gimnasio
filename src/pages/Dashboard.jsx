@@ -45,6 +45,7 @@ import EntrenadoresTab from '../components/EntrenadoresTab'
 import ProductosTab from '../components/ProductosTab'
 import ReportesTab from '../components/ReportesTab'
 import FacturasTab from '../components/FacturasTab'
+import SesionesTab from '../components/SesionesTab'
 import { useNavigate } from 'react-router-dom'
 import { logout, getCurrentUser } from '../utils/auth'
 import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck, FiBox, FiTarget, FiTrendingUp, FiClock, FiFileText, FiBarChart2 } from 'react-icons/fi'
@@ -743,6 +744,18 @@ export default function Dashboard() {
                         Entrenadores
                     </Button>
                     <Button
+                        leftIcon={<FiClock />}
+                        w="full"
+                        justifyContent="start"
+                        variant={currentTab === 'sesiones' ? 'solid' : 'ghost'}
+                        colorScheme={currentTab === 'sesiones' ? 'green' : 'gray'}
+                        onClick={() => setCurrentTab('sesiones')}
+                        _hover={{ bg: currentTab === 'sesiones' ? 'green.500' : 'gray.100', transform: 'translateX(4px)' }}
+                        transition="all 0.2s"
+                    >
+                        Sesiones
+                    </Button>
+                    <Button
                         leftIcon={<FiBarChart2 />}
                         w="full"
                         justifyContent="start"
@@ -790,6 +803,7 @@ export default function Dashboard() {
                     {currentTab === 'estadisticas' && <EstadisticasTab />}
                     {currentTab === 'entrenadores' && <EntrenadoresTab />}
                     {currentTab === 'productos' && <ProductosTab />}
+                    {currentTab === 'sesiones' && <SesionesTab />}
                     {currentTab === 'reportes' && <ReportesTab />}
                     {currentTab === 'facturas' && <FacturasTab />}
                     {currentTab === 'perfil' && <PerfilTab />}

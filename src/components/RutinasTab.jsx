@@ -714,69 +714,6 @@ export default function RutinasTab() {
                     {/* PANEL DE ESTADÍSTICAS */}
                     <TabPanel>
                         <VStack spacing={6} align="stretch">
-                            {/* Tarjetas de Estadísticas Principales */}
-                            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
-                                <Card boxShadow="md" borderLeft="4px" borderLeftColor="green.400">
-                                    <CardBody>
-                                        <Stat>
-                                            <StatLabel color="gray.600" fontSize="sm">Total Rutinas</StatLabel>
-                                            <StatNumber fontSize="3xl" color="green.600">
-                                                {estadisticas?.total_rutinas || rutinas.length}
-                                            </StatNumber>
-                                            <StatHelpText>
-                                                <StatArrow type="increase" />
-                                                {estadisticas?.rutinas_activas || rutinas.filter(r => r.estado === 'activo').length} activas
-                                            </StatHelpText>
-                                        </Stat>
-                                    </CardBody>
-                                </Card>
-
-                                <Card boxShadow="md" borderLeft="4px" borderLeftColor="blue.400">
-                                    <CardBody>
-                                        <Stat>
-                                            <StatLabel color="gray.600" fontSize="sm">Total Asignaciones</StatLabel>
-                                            <StatNumber fontSize="3xl" color="blue.600">
-                                                {estadisticas?.total_asignaciones || 0}
-                                            </StatNumber>
-                                            <StatHelpText>
-                                                <FiUsers style={{ display: 'inline', marginRight: '4px' }} />
-                                                Rutinas asignadas a usuarios
-                                            </StatHelpText>
-                                        </Stat>
-                                    </CardBody>
-                                </Card>
-
-                                <Card boxShadow="md" borderLeft="4px" borderLeftColor="purple.400">
-                                    <CardBody>
-                                        <Stat>
-                                            <StatLabel color="gray.600" fontSize="sm">Rutina Más Popular</StatLabel>
-                                            <StatNumber fontSize="lg" color="purple.600" noOfLines={1}>
-                                                {estadisticas?.rutina_mas_popular?.nombre || 'N/A'}
-                                            </StatNumber>
-                                            <StatHelpText>
-                                                <FiAward style={{ display: 'inline', marginRight: '4px' }} />
-                                                {estadisticas?.rutina_mas_popular?.total_asignaciones || 0} asignaciones
-                                            </StatHelpText>
-                                        </Stat>
-                                    </CardBody>
-                                </Card>
-
-                                <Card boxShadow="md" borderLeft="4px" borderLeftColor="orange.400">
-                                    <CardBody>
-                                        <Stat>
-                                            <StatLabel color="gray.600" fontSize="sm">Promedio Duración</StatLabel>
-                                            <StatNumber fontSize="3xl" color="orange.600">
-                                                {Math.round(rutinas.reduce((sum, r) => sum + (r.duracion_estimada || 60), 0) / (rutinas.length || 1))} min
-                                            </StatNumber>
-                                            <StatHelpText>
-                                                <FiClock style={{ display: 'inline', marginRight: '4px' }} />
-                                                Por rutina
-                                            </StatHelpText>
-                                        </Stat>
-                                    </CardBody>
-                                </Card>
-                            </SimpleGrid>
-
                             {estadisticas ? (
                                 <>
                                     {/* Gráficos de Distribución */}
@@ -786,7 +723,7 @@ export default function RutinasTab() {
                                             <CardBody>
                                                 <Heading size="md" mb={4}>Distribución por Nivel</Heading>
                                                 <Box h="300px">
-                                                    <ResponsiveContainer width="100%" height="100%">
+                                                    <ResponsiveContainer width="100%" height={300}>
                                                         <PieChart>
                                                             <Pie
                                                                 data={[
@@ -819,7 +756,7 @@ export default function RutinasTab() {
                                             <CardBody>
                                                 <Heading size="md" mb={4}>Distribución por Objetivo</Heading>
                                                 <Box h="300px">
-                                                    <ResponsiveContainer width="100%" height="100%">
+                                                    <ResponsiveContainer width="100%" height={300}>
                                                         <BarChart
                                                             data={[
                                                                 { objetivo: 'Tonificación', cantidad: rutinas.filter(r => (r.objetivo || '').toLowerCase() === 'tonificacion').length },
