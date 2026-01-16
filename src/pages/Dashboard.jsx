@@ -46,9 +46,10 @@ import ProductosTab from '../components/ProductosTab'
 import ReportesTab from '../components/ReportesTab'
 import FacturasTab from '../components/FacturasTab'
 import SesionesTab from '../components/SesionesTab'
+import RBACTab from '../components/RBACTab'
 import { useNavigate } from 'react-router-dom'
 import { logout, getCurrentUser } from '../utils/auth'
-import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck, FiBox, FiTarget, FiTrendingUp, FiClock, FiFileText, FiBarChart2 } from 'react-icons/fi'
+import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck, FiBox, FiTarget, FiTrendingUp, FiClock, FiFileText, FiBarChart2, FiShield } from 'react-icons/fi'
 import { useState, useEffect } from 'react'
 import { usuariosAPI, pagosAPI, dashboardAPI, reportesAPI } from '../services/api'
 
@@ -780,6 +781,18 @@ export default function Dashboard() {
                         Facturas
                     </Button>
                     <Button
+                        leftIcon={<FiShield />}
+                        w="full"
+                        justifyContent="start"
+                        variant={currentTab === 'rbac' ? 'solid' : 'ghost'}
+                        colorScheme={currentTab === 'rbac' ? 'green' : 'gray'}
+                        onClick={() => setCurrentTab('rbac')}
+                        _hover={{ bg: currentTab === 'rbac' ? 'green.500' : 'gray.100', transform: 'translateX(4px)' }}
+                        transition="all 0.2s"
+                    >
+                        Roles y Permisos
+                    </Button>
+                    <Button
                         leftIcon={<FiUser />}
                         w="full"
                         justifyContent="start"
@@ -806,6 +819,7 @@ export default function Dashboard() {
                     {currentTab === 'sesiones' && <SesionesTab />}
                     {currentTab === 'reportes' && <ReportesTab />}
                     {currentTab === 'facturas' && <FacturasTab />}
+                    {currentTab === 'rbac' && <RBACTab />}
                     {currentTab === 'perfil' && <PerfilTab />}
                 </Box>
             </Flex>
