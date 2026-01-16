@@ -147,33 +147,21 @@ const getMembresiaColor = (fechaVencimiento) => {
     if (!fechaVencimiento) return 'gray'
     
     const hoy = new Date()
-    hoy.setHours(0, 0, 0, 0) // Resetear hora para comparar solo fechas
+    hoy.setHours(0, 0, 0, 0)
     
-    // Parsear la fecha del backend (puede venir como "2026-01-14" o "14/01/2026")
     let vencimiento
     if (fechaVencimiento.includes('/')) {
-        // Formato DD/MM/YYYY
         const [dia, mes, año] = fechaVencimiento.split('/').map(Number)
         vencimiento = new Date(año, mes - 1, dia)
     } else {
-        // Formato ISO (YYYY-MM-DD) o timestamp
         vencimiento = new Date(fechaVencimiento)
     }
     vencimiento.setHours(0, 0, 0, 0)
     
-    console.log('🔍 Comparando fechas:', {
-        fechaVencimiento,
-        vencimientoParsed: vencimiento.toLocaleDateString('es-CO'),
-        hoy: hoy.toLocaleDateString('es-CO'),
-        estaVencida: vencimiento <= hoy
-    })
-    
-    // Si ya venció o es hoy, rojo
     if (vencimiento <= hoy) {
         return 'red'
     }
     
-    // Si está vigente (fecha futura), verde
     return 'green'
 }
 
