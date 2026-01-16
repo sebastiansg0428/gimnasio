@@ -184,11 +184,11 @@ export default function RutinasTab() {
                     setUsuarios(Array.isArray(dataUsuarios) ? dataUsuarios : [])
                     setEstadisticas(dataEstadisticas)
                     
-                    // DEBUG: Verificar usuarios cargados
-                    console.log('👥 USUARIOS CARGADOS:', dataUsuarios)
-                    console.log('👥 Total usuarios:', dataUsuarios?.length || 0)
-                    console.log('👥 Primer usuario (estructura):', dataUsuarios?.[0])
-                    console.log('👥 Usuarios activos:', dataUsuarios?.filter(u => u.estado === 'activo')?.length || 0)
+                    // DEBUG: Verificar estadísticas del backend
+                    console.log('📊 ESTADÍSTICAS RUTINAS:', dataEstadisticas)
+                    console.log('📊 Total asignaciones:', dataEstadisticas?.total_asignaciones)
+                    console.log('📊 Usuarios con rutinas:', dataEstadisticas?.usuarios_con_rutinas)
+                    console.log('📊 Rutina más popular:', dataEstadisticas?.rutina_mas_popular)
                 }
             } catch (err) {
                 console.error('Error cargando datos', err)
