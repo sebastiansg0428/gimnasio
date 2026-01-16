@@ -142,6 +142,41 @@ const getEstadoMembresia = (fechaVencimiento) => {
     return { estado: 'activa', color: 'green', texto: dias + ' dias' }
 }
 
+// Función para determinar el color de la membresía según si está vencida o vigente
+const getMembresiaColor = (fechaVencimiento) => {
+    if (!fechaVencimiento) return 'gray'
+    
+    const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0) // Resetear hora para comparar solo fechas
+    
+    // Parsear la fecha del backend (puede venir como "2026-01-14" o "14/01/2026")
+    let vencimiento
+    if (fechaVencimiento.includes('/')) {
+        // Formato DD/MM/YYYY
+        const [dia, mes, año] = fechaVencimiento.split('/').map(Number)
+        vencimiento = new Date(año, mes - 1, dia)
+    } else {
+        // Formato ISO (YYYY-MM-DD) o timestamp
+        vencimiento = new Date(fechaVencimiento)
+    }
+    vencimiento.setHours(0, 0, 0, 0)
+    
+    console.log('🔍 Comparando fechas:', {
+        fechaVencimiento,
+        vencimientoParsed: vencimiento.toLocaleDateString('es-CO'),
+        hoy: hoy.toLocaleDateString('es-CO'),
+        estaVencida: vencimiento <= hoy
+    })
+    
+    // Si ya venció o es hoy, rojo
+    if (vencimiento <= hoy) {
+        return 'red'
+    }
+    
+    // Si está vigente (fecha futura), verde
+    return 'green'
+}
+
 // Lista inicial vacía: mostrar solo usuarios provenientes del backend
 
 export default function ClientesTab() {
@@ -1056,12 +1091,7 @@ export default function ClientesTab() {
                                             <PopoverTrigger>
                                                 <Button size="sm" variant="ghost" p={0} h="auto">
                                                     <Badge 
-                                                        colorScheme={
-                                                            cliente.membresia === 'ANUAL' ? 'purple' : 
-                                                            cliente.membresia === 'QUINCENAL' ? 'blue' : 
-                                                            cliente.membresia === 'SEMANAL' ? 'green' :
-                                                            'orange'
-                                                        }
+                                                        colorScheme={getMembresiaColor(cliente.fecha_vencimiento)}
                                                         fontSize="sm"
                                                     >
                                                         {cliente.membresia?.toUpperCase()}
@@ -1078,12 +1108,7 @@ export default function ClientesTab() {
                                                     <VStack align="stretch" spacing={2}>
                                                         <HStack justify="space-between">
                                                             <Text fontSize="sm" color="gray.600">Tipo:</Text>
-                                                            <Badge colorScheme={
-                                                                cliente.membresia === 'ANUAL' ? 'purple' : 
-                                                                cliente.membresia === 'QUINCENAL' ? 'blue' : 
-                                                                cliente.membresia === 'SEMANAL' ? 'green' :
-                                                                'orange'
-                                                            }>
+                                                            <Badge colorScheme={getMembresiaColor(cliente.fecha_vencimiento)}>
                                                                 {cliente.membresia}
                                                             </Badge>
                                                         </HStack>
@@ -1108,9 +1133,12 @@ export default function ClientesTab() {
                                                         
                                                         <HStack justify="space-between">
                                                             <Text fontSize="sm" color="gray.600">Fecha de Vencimiento:</Text>
-                                                            <Text fontSize="sm" fontWeight="medium">
+                                                            <Badge 
+                                                                colorScheme={getMembresiaColor(cliente.fecha_vencimiento)}
+                                                                fontSize="xs"
+                                                            >
                                                                 {formatearFecha(cliente.fecha_vencimiento)}
-                                                            </Text>
+                                                            </Badge>
                                                         </HStack>
                                                         
                                                         {pagosMap[cliente.id] && pagosMap[cliente.id].monto && (
