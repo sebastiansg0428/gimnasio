@@ -260,3 +260,143 @@ export const ventasAPI = {
     getHistorialUsuario: (usuarioId) => apiRequest(`/ventas/usuario/${usuarioId}`),
     getEstadisticas: () => apiRequest('/ventas/estadisticas')
 }
+
+// TRANSACCIONES (Pagos + Ventas unificado)
+export const transaccionesAPI = {
+    getTransacciones: (filtros = {}) => {
+        const params = new URLSearchParams()
+        if (filtros.usuario_id) params.append('usuario_id', filtros.usuario_id)
+        if (filtros.tipo) params.append('tipo', filtros.tipo)
+        if (filtros.metodo_pago) params.append('metodo_pago', filtros.metodo_pago)
+        if (filtros.fecha_desde) params.append('fecha_desde', filtros.fecha_desde)
+        if (filtros.fecha_hasta) params.append('fecha_hasta', filtros.fecha_hasta)
+        
+        const query = params.toString()
+        return apiRequest(query ? `/transacciones?${query}` : '/transacciones')
+    }
+}
+
+// EJERCICIOS
+export const ejerciciosAPI = {
+    getEjercicios: (filtros = {}) => {
+        const params = new URLSearchParams()
+        if (filtros.grupo_muscular) params.append('grupo_muscular', filtros.grupo_muscular)
+        if (filtros.tipo) params.append('tipo', filtros.tipo)
+        if (filtros.nivel) params.append('nivel', filtros.nivel)
+        
+        const query = params.toString()
+        return apiRequest(query ? `/ejercicios?${query}` : '/ejercicios')
+    },
+    getEjercicio: (id) => apiRequest(`/ejercicios/${id}`),
+    createEjercicio: (data) => apiRequest('/ejercicios', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    updateEjercicio: (id, data) => apiRequest(`/ejercicios/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    }),
+    deleteEjercicio: (id) => apiRequest(`/ejercicios/${id}`, { method: 'DELETE' })
+}
+
+// RUTINAS
+export const rutinasAPI = {
+    getRutinas: (filtros = {}) => {
+        const params = new URLSearchParams()
+        if (filtros.objetivo) params.append('objetivo', filtros.objetivo)
+        if (filtros.nivel) params.append('nivel', filtros.nivel)
+        if (filtros.tipo) params.append('tipo', filtros.tipo)
+        
+        const query = params.toString()
+        return apiRequest(query ? `/rutinas?${query}` : '/rutinas')
+    },
+    getRutina: (id) => apiRequest(`/rutinas/${id}`),
+    createRutina: (data) => apiRequest('/rutinas', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    updateRutina: (id, data) => apiRequest(`/rutinas/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    }),
+    deleteRutina: (id) => apiRequest(`/rutinas/${id}`, { method: 'DELETE' }),
+    addEjercicio: (rutinaId, data) => apiRequest(`/rutinas/${rutinaId}/ejercicios`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    updateEjercicio: (rutinaId, ejercicioId, data) => apiRequest(`/rutinas/${rutinaId}/ejercicios/${ejercicioId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    }),
+    deleteEjercicio: (rutinaId, ejercicioId) => apiRequest(`/rutinas/${rutinaId}/ejercicios/${ejercicioId}`, {
+        method: 'DELETE'
+    }),
+    asignarAUsuario: (usuarioId, rutinaId, data = {}) => apiRequest(`/usuarios/${usuarioId}/rutinas/${rutinaId}`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    getRutinasUsuario: (usuarioId) => apiRequest(`/usuarios/${usuarioId}/rutinas`),
+    updateProgresoUsuario: (usuarioId, asignacionId, data) => apiRequest(`/usuarios/${usuarioId}/rutinas/${asignacionId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    }),
+    getEstadisticas: () => apiRequest('/rutinas/estadisticas')
+}
+
+// ENTRENADORES
+export const entrenadoresAPI = {
+    getEntrenadores: (filtros = {}) => {
+        const params = new URLSearchParams()
+        if (filtros.especialidad) params.append('especialidad', filtros.especialidad)
+        if (filtros.estado) params.append('estado', filtros.estado)
+        
+        const query = params.toString()
+        return apiRequest(query ? `/entrenadores?${query}` : '/entrenadores')
+    },
+    getEntrenador: (id) => apiRequest(`/entrenadores/${id}`),
+    createEntrenador: (data) => apiRequest('/entrenadores', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    updateEntrenador: (id, data) => apiRequest(`/entrenadores/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    }),
+    deleteEntrenador: (id) => apiRequest(`/entrenadores/${id}`, { method: 'DELETE' }),
+    
+    // Horarios
+    getHorarios: (entrenadorId) => apiRequest(`/entrenadores/${entrenadorId}/horarios`),
+    createHorario: (entrenadorId, data) => apiRequest(`/entrenadores/${entrenadorId}/horarios`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    deleteHorario: (entrenadorId, horarioId) => apiRequest(`/entrenadores/${entrenadorId}/horarios/${horarioId}`, {
+        method: 'DELETE'
+    }),
+    
+    // Clientes
+    getClientes: (entrenadorId) => apiRequest(`/entrenadores/${entrenadorId}/clientes`),
+    asignarCliente: (entrenadorId, usuarioId, data = {}) => apiRequest(`/entrenadores/${entrenadorId}/clientes/${usuarioId}`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    quitarCliente: (entrenadorId, usuarioId) => apiRequest(`/entrenadores/${entrenadorId}/clientes/${usuarioId}`, {
+        method: 'DELETE'
+    }),
+    
+    // Sesiones
+    getSesiones: (entrenadorId) => apiRequest(`/entrenadores/${entrenadorId}/sesiones`),
+    createSesion: (entrenadorId, data) => apiRequest(`/entrenadores/${entrenadorId}/sesiones`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    
+    // Valoraciones
+    getValoraciones: (entrenadorId) => apiRequest(`/entrenadores/${entrenadorId}/valoraciones`),
+    createValoracion: (entrenadorId, data) => apiRequest(`/entrenadores/${entrenadorId}/valoraciones`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    
+    getEstadisticas: () => apiRequest('/entrenadores/estadisticas')
+}

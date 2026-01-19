@@ -50,9 +50,10 @@ import RBACTab from '../components/RBACTab'
 import CarritoTab from '../components/CarritoTab'
 import { useNavigate } from 'react-router-dom'
 import { logout, getCurrentUser } from '../utils/auth'
-import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck, FiBox, FiTarget, FiTrendingUp, FiClock, FiFileText, FiBarChart2, FiShield, FiShoppingCart } from 'react-icons/fi'
+import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck, FiBox, FiTarget, FiTrendingUp, FiClock, FiFileText, FiBarChart2, FiShield, FiShoppingCart, FiCreditCard } from 'react-icons/fi'
 import { useState, useEffect } from 'react'
 import { usuariosAPI, pagosAPI, dashboardAPI, reportesAPI } from '../services/api'
+import eventBus, { EVENTS } from '../utils/events'
 
 // Componente para la vista general (Home)
 function HomeTab() {
@@ -66,9 +67,72 @@ function HomeTab() {
         const cargarDashboard = async () => {
             try {
                 setLoading(true)
-                console.log('🔄 Cargando dashboard mejorado...')
+                console.log('🔄 Cargando dashboard optimizado con endpoint unificado...')
                 
-                // Cargar datos usando endpoints individuales
+                // OPTIMIZACIÓN: Usar GET /dashboard en lugar de múltiples llamadas
+                try {
+                    const dashData = await dashboardAPI.getDashboard()
+                    console.log('✅ Dashboard completo cargado:', dashData)
+                    
+                    if (dashData) {
+                        // Mapear estructura del backend a la estructura esperada del frontend
+                        const datosAdaptados = {
+                            clientes: {
+                                total: dashData.usuarios?.total || dashData.stats?.totalClientes || 0,
+                                activos: dashData.usuarios?.clientes_activos || dashData.stats?.clientesActivos || 0,
+                                inactivos: (dashData.usuarios?.total || 0) - (dashData.usuarios?.clientes_activos || 0),
+                                asistenciaHoy: dashData.stats?.asistenciaHoy || 0,
+                                nuevosEsteMes: dashData.usuarios?.nuevos_este_mes || 0,
+                                conMembresia: dashData.usuarios?.con_membresia || 0,
+                                tasaRenovacion: dashData.usuarios?.tasa_renovacion || 0,
+                                cambioAsistencia: 0
+                            },
+                            ingresos: {
+                                totalMes: dashData.ingresos?.mes_actual || dashData.stats?.ingresosMes || 0,
+                                cambio: dashData.ingresos?.cambio_porcentaje || 100,
+                                promedioPorCliente: Math.round((dashData.ingresos?.mes_actual || 0) / (dashData.usuarios?.total || 1))
+                            },
+                            rutinas: {
+                                activas: dashData.rutinas?.activas || dashData.stats?.rutinasActivas || 0,
+                                total: dashData.rutinas?.total || 0,
+                                nuevasEstaSemana: dashData.rutinas?.nuevas_esta_semana || 0
+                            },
+                            actividadReciente: dashData.actividad_reciente || []
+                        }
+                        
+                        console.log('📊 Datos adaptados para el frontend:', datosAdaptados)
+                        setDashboardData(datosAdaptados)
+                        setIngresosMensuales(dashData.ingresos_mensuales || [])
+                        
+                        // Crear alertas desde los datos del dashboard
+                        const nuevasAlertas = []
+                        if (dashData.alertas?.membresias_vencer?.length > 0) {
+                            nuevasAlertas.push({
+                                tipo: 'warning',
+                                icono: '⚠️',
+                                titulo: 'Membresías por vencer',
+                                descripcion: `${dashData.alertas.membresias_vencer.length} clientes tienen su membresía por vencer pronto`,
+                                accion: 'Ver detalles'
+                            })
+                        }
+                        if (dashData.alertas?.usuarios_inactivos?.length > 0) {
+                            nuevasAlertas.push({
+                                tipo: 'info',
+                                icono: '😴',
+                                titulo: 'Usuarios inactivos',
+                                descripcion: `${dashData.alertas.usuarios_inactivos.length} usuarios no han visitado en los últimos 30 días`,
+                                accion: 'Ver lista'
+                            })
+                        }
+                        setAlertas(nuevasAlertas)
+                        setLoading(false)
+                        return
+                    }
+                } catch (dashError) {
+                    console.warn('⚠️ Dashboard unificado falló, usando método alternativo:', dashError.message)
+                }
+                
+                // FALLBACK: Si GET /dashboard falla, usar método anterior
                 const [usuarios, pagos] = await Promise.all([
                     usuariosAPI.getUsuarios().catch(err => {
                         console.error('Error cargando usuarios:', err)
@@ -217,19 +281,32 @@ function HomeTab() {
 
         cargarDashboard()
         
-        // Escuchar eventos de cambios en clientes/pagos
-        const handleClienteCreado = () => {
-            console.log('🔔 Dashboard: Recargando por nuevo cliente...')
-            cargarDashboard()
-        }
+        // Suscribirse a eventos del sistema para auto-refresh
+        const unsubscribers = [
+            eventBus.on(EVENTS.DASHBOARD_REFRESH, () => {
+                console.log('🔔 Dashboard: Recargando por evento...')
+                cargarDashboard()
+            }),
+            eventBus.on(EVENTS.COMPRA_REALIZADA, (data) => {
+                console.log('🛒 Dashboard: Compra realizada, actualizando ingresos...', data)
+                cargarDashboard()
+            }),
+            eventBus.on(EVENTS.PAGO_CREATED, (data) => {
+                console.log('💰 Dashboard: Pago registrado, actualizando...', data)
+                cargarDashboard()
+            }),
+            eventBus.on(EVENTS.USUARIO_CREATED, () => {
+                console.log('👤 Dashboard: Usuario creado, actualizando...')
+                cargarDashboard()
+            })
+        ]
         
-        window.addEventListener('clienteCreado', handleClienteCreado)
-        
-        // Recargar cada 60 segundos
-        const interval = setInterval(cargarDashboard, 60000)
+        // Recargar cada 2 minutos
+        const interval = setInterval(cargarDashboard, 120000)
         
         return () => {
-            window.removeEventListener('clienteCreado', handleClienteCreado)
+            // Desuscribirse de todos los eventos
+            unsubscribers.forEach(unsub => unsub())
             clearInterval(interval)
         }
     }, [toast])

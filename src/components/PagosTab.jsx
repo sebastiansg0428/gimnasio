@@ -56,6 +56,7 @@ import { FiPlus, FiSearch, FiEye, FiTrash2, FiDollarSign, FiTrendingUp, FiCredit
 import { useState, useEffect, useMemo } from 'react'
 import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts'
 import { pagosAPI, usuariosAPI, productosAPI } from '../services/api'
+import { emitPagoCreated } from '../utils/events'
 
 // Función helper para obtener headers con autenticación
 function getAuthHeaders() {
@@ -264,7 +265,7 @@ export default function PagosTab() {
                 fecha_pago: new Date().toISOString().split('T')[0]
             }
             
-            await pagosAPI.createPago(pagoData)
+            const resultado = await pagosAPI.createPago(pagoData)
             
             toast({
                 title: '✅ Pago registrado exitosamente',
@@ -272,6 +273,10 @@ export default function PagosTab() {
                 duration: 3000,
                 isClosable: true
             })
+            
+            // Emitir evento para actualizar dashboard
+            emitPagoCreated(resultado)
+            console.log('💰 Evento de pago emitido - Dashboard debería actualizarse')
             
             await cargarDatos()
             onClose()

@@ -46,6 +46,7 @@ import { useState, useEffect } from 'react'
 import { ventasAPI, productosAPI, usuariosAPI } from '../services/api'
 import { getCurrentUser } from '../utils/auth'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { emitCompraRealizada } from '../utils/events'
 
 export default function CarritoTab() {
     const [carrito, setCarrito] = useState([])
@@ -320,6 +321,17 @@ export default function CarritoTab() {
                 status: 'success',
                 duration: 4000,
             })
+
+            // Emitir evento de compra realizada para actualizar dashboard
+            const totalCompra = calcularTotal()
+            emitCompraRealizada({
+                usuario_id: usuarioId,
+                productos: carrito.length,
+                total: totalCompra,
+                metodo_pago: metodoPago,
+                timestamp: new Date().toISOString()
+            })
+            console.log('🛒 Evento de compra emitido - Dashboard debería actualizarse')
 
             // Limpiar carrito
             guardarCarrito([])
