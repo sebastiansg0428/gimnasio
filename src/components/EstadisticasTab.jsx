@@ -1,5 +1,6 @@
-import { Box, VStack, Grid, Card, CardBody, Heading, Stat, StatLabel, StatNumber, StatHelpText, Text, useColorModeValue } from '@chakra-ui/react'
-import { useMemo } from 'react'
+import { Box, VStack, Grid, Card, CardBody, Heading, Stat, StatLabel, StatNumber, StatHelpText, Text, useColorModeValue, Spinner, Alert, AlertIcon, SimpleGrid } from '@chakra-ui/react'
+import { useState, useEffect, useMemo } from 'react'
+import { estadisticasAPI, pagosAPI, usuariosAPI } from '../services/api'
 
 // Pequeñas utilidades de fecha
 function parseDate(iso) {
@@ -44,9 +45,73 @@ function HorizontalBar({ label, value, total, color = '#24A148' }) {
 
 export default function EstadisticasTab() {
     const bg = useColorModeValue('white', 'gray.700')
+    const [loading, setLoading] = useState(true)
+    const [ingresosUnificados, setIngresosUnificados] = useState(null)
+    const [estadisticasPagos, setEstadisticasPagos] = useState(null)
+    const [usuarios, setUsuarios] = useState([])
+
+    useEffect(() => {
+        cargarEstadisticas()
+    }, [])
+
+    const cargarEstadisticas = async () => {
+        try {
+            setLoading(true)
+            console.log('📊 Cargando estadísticas unificadas...')
+            
+            const [ingresos, stats, users] = await Promise.all([
+                estadisticasAPI.getIngresosUnificados().catch(() => null),
+                pagosAPI.getEstadisticas().catch(() => null),
+                usuariosAPI.getUsuarios().catch(() => [])
+            ])
+            
+            console.log('💰 Ingresos unificados:', ingresos)
+            console.log('📈 Estadísticas de pagos:', stats)
+            console.log('👥 Usuarios:', users.length)
+            
+            setIngresosUnificados(ingresos)
+            setEstadisticasPagos(stats)
+            setUsuarios(users)
+        } catch (error) {
+            console.error('❌ Error cargando estadísticas:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const { totalClientes, clientesPorMembresia, ingresosPorMes, ingresosMesActual, asistencia } = useMemo(() => {
-        // leer datos desde localStorage
+        // Usar datos del backend si están disponibles
+        if (ingresosUnificados && usuarios.length > 0) {
+            const totalClientes = usuarios.length
+
+            // Distribución por membresía
+            const clientesPorMembresia = usuarios.reduce((acc, c) => {
+                const key = (c.membresia || 'Sin membresía')
+                acc[key] = (acc[key] || 0) + 1
+                return acc
+            }, {})
+
+            // Usar ingresos del backend (ya unificados: pagos + ventas)
+            const ingresosMesActual = ingresosUnificados.mes_actual?.total || 0
+            const ingresosPorMes = [ingresosMesActual] // Simplificado, podrías obtener histórico del backend
+
+            // Asistencia estimada
+            const clientesActivos = usuarios.filter(u => u.estado === 'activo').length
+            const asistencia = Array.from({ length: 14 }).map((_, i) => {
+                const base = Math.max(5, Math.round(clientesActivos / 10))
+                return base + Math.round(Math.sin(i / 2) * 5 + (Math.random() * 4 - 2))
+            })
+
+            return {
+                totalClientes,
+                clientesPorMembresia,
+                ingresosPorMes,
+                ingresosMesActual,
+                asistencia,
+            }
+        }
+        
+        // Fallback a localStorage si no hay datos del backend
         let clients = []
         let pagos = []
         try { clients = JSON.parse(localStorage.getItem('rg_clients') || '[]') } catch { }
@@ -83,7 +148,6 @@ export default function EstadisticasTab() {
 
         // Asistencia: generar un pequeño histórico mock basado en clientes activos
         const asistencia = Array.from({ length: 14 }).map((_, i) => {
-            // simple: fluctuación alrededor de clientes activos/10
             const base = Math.max(5, Math.round((clients.filter(c => c.estado === 'Activo').length || 20) / 10))
             return base + Math.round(Math.sin(i / 2) * 5 + (Math.random() * 4 - 2))
         })
@@ -95,12 +159,39 @@ export default function EstadisticasTab() {
             ingresosMesActual,
             asistencia,
         }
-    }, [])
+    }, [ingresosUnificados, estadisticasPagos, usuarios])
 
     const totalMembresias = Object.values(clientesPorMembresia).reduce((s, v) => s + v, 0) || 0
 
+    if (loading) {
+        return (
+            <Box textAlign="center" py={20}>
+                <Spinner size="xl" color="blue.500" />
+                <Text mt={4}>Cargando estadísticas...</Text>
+            </Box>
+        )
+    }
+
     return (
         <VStack spacing={6} align="stretch">
+            {ingresosUnificados && (
+                <Alert status="info" borderRadius="md">
+                    <AlertIcon />
+                    <Box>
+                        <Text fontWeight="bold">Ingresos Unificados (Pagos + Ventas)</Text>
+                        <Text fontSize="sm">
+                            Mes actual: ${ingresosUnificados.mes_actual?.total?.toLocaleString() || 0} • 
+                            Año: ${ingresosUnificados.anio_actual?.total?.toLocaleString() || 0} • 
+                            Hoy: ${ingresosUnificados.hoy?.total?.toLocaleString() || 0}
+                        </Text>
+                        <Text fontSize="xs" color="gray.600" mt={1}>
+                            Desglose mes: Pagos ${ingresosUnificados.mes_actual?.pagos?.toLocaleString() || 0} + 
+                            Ventas ${ingresosUnificados.mes_actual?.ventas?.toLocaleString() || 0}
+                        </Text>
+                    </Box>
+                </Alert>
+            )}
+            
             <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={6}>
                 <Card bg={bg}>
                     <CardBody>

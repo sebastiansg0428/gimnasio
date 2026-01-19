@@ -52,7 +52,7 @@ import { useNavigate } from 'react-router-dom'
 import { logout, getCurrentUser } from '../utils/auth'
 import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck, FiBox, FiTarget, FiTrendingUp, FiClock, FiFileText, FiBarChart2, FiShield, FiShoppingCart, FiCreditCard } from 'react-icons/fi'
 import { useState, useEffect } from 'react'
-import { usuariosAPI, pagosAPI, dashboardAPI, reportesAPI } from '../services/api'
+import { usuariosAPI, pagosAPI, dashboardAPI, reportesAPI, estadisticasAPI } from '../services/api'
 import eventBus, { EVENTS } from '../utils/events'
 
 // Componente para la vista general (Home)
@@ -75,6 +75,15 @@ function HomeTab() {
                     console.log('✅ Dashboard completo cargado:', dashData)
                     
                     if (dashData) {
+                        // Obtener estadísticas de ingresos unificadas (pagos + ventas)
+                        let ingresosUnificados = null
+                        try {
+                            ingresosUnificados = await estadisticasAPI.getIngresosUnificados()
+                            console.log('💰 Ingresos unificados (pagos + ventas):', ingresosUnificados)
+                        } catch (err) {
+                            console.warn('⚠️ No se pudieron obtener ingresos unificados:', err.message)
+                        }
+                        
                         // Mapear estructura del backend a la estructura esperada del frontend
                         const datosAdaptados = {
                             clientes: {
@@ -88,9 +97,15 @@ function HomeTab() {
                                 cambioAsistencia: 0
                             },
                             ingresos: {
-                                totalMes: dashData.ingresos?.mes_actual || dashData.stats?.ingresosMes || 0,
-                                cambio: dashData.ingresos?.cambio_porcentaje || 100,
-                                promedioPorCliente: Math.round((dashData.ingresos?.mes_actual || 0) / (dashData.usuarios?.total || 1))
+                                // Usar ingresos unificados con estructura {total, pagos, ventas}
+                                totalMes: ingresosUnificados?.mes_actual?.total || dashData.ingresos?.mes_actual || dashData.stats?.ingresosMes || 0,
+                                totalAnio: ingresosUnificados?.anio_actual?.total || 0,
+                                totalHoy: ingresosUnificados?.hoy?.total || 0,
+                                cambio: ingresosUnificados?.cambio_mensual?.porcentaje || dashData.ingresos?.cambio_porcentaje || 100,
+                                promedioPorCliente: Math.round((ingresosUnificados?.mes_actual?.total || dashData.ingresos?.mes_actual || 0) / (dashData.usuarios?.total || 1)),
+                                // Datos adicionales del desglose
+                                pagos: ingresosUnificados?.mes_actual?.pagos || 0,
+                                ventas: ingresosUnificados?.mes_actual?.ventas || 0
                             },
                             rutinas: {
                                 activas: dashData.rutinas?.activas || dashData.stats?.rutinasActivas || 0,

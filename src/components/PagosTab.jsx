@@ -573,26 +573,18 @@ export default function PagosTab() {
 
     return (
         <Box>
-            {/* Tarjetas de Estadísticas */}
+            {/* Tarjetas de Estadísticas - Desglose de Ingresos */}
             <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
                 <Card boxShadow="md" borderLeft="4px" borderLeftColor="green.400">
                     <CardBody>
                         <Stat>
                             <StatLabel color="gray.600" fontSize="sm">Total Ingresos</StatLabel>
                             <StatNumber fontSize="3xl" color="green.600">
-                                ${(() => {
-                                    // Usar el campo correcto del backend: ingresos_totales
-                                    const ingresoBackend = parseFloat(estadisticas?.ingresos_totales || 0)
-                                    // Calcular localmente como respaldo
-                                    const ingresoLocal = pagos
-                                        .filter(p => p.estado === 'completado' || p.estado === 'pagado')
-                                        .reduce((sum, p) => sum + parseFloat(p.monto || 0), 0)
-                                    return (ingresoBackend || ingresoLocal).toLocaleString('es-CO')
-                                })()}
+                                ${parseFloat(estadisticas?.ingresos_totales || 0).toLocaleString('es-CO')}
                             </StatNumber>
                             <StatHelpText>
                                 <StatArrow type="increase" />
-                                Todos los pagos completados
+                                Pagos + Ventas
                             </StatHelpText>
                         </Stat>
                     </CardBody>
@@ -601,12 +593,14 @@ export default function PagosTab() {
                 <Card boxShadow="md" borderLeft="4px" borderLeftColor="blue.400">
                     <CardBody>
                         <Stat>
-                            <StatLabel color="gray.600" fontSize="sm">Total Pagos</StatLabel>
-                            <StatNumber fontSize="3xl" color="blue.600">
-                                {estadisticas?.total_pagos || pagos.length}
+                            <StatLabel color="gray.600" fontSize="sm">Ingresos por Pagos</StatLabel>
+                            <StatNumber fontSize="2xl" color="blue.600">
+                                ${parseFloat(estadisticas?.pagos?.ingresos || 0).toLocaleString('es-CO')}
                             </StatNumber>
                             <StatHelpText>
-                                <Badge colorScheme="green">{estadisticas?.pagos_completados || pagos.filter(p => p.estado === 'completado' || p.estado === 'pagado').length} completados</Badge>
+                                <Badge colorScheme="blue">
+                                    {estadisticas?.pagos?.total || 0} pagos
+                                </Badge>
                             </StatHelpText>
                         </Stat>
                     </CardBody>
@@ -615,15 +609,14 @@ export default function PagosTab() {
                 <Card boxShadow="md" borderLeft="4px" borderLeftColor="purple.400">
                     <CardBody>
                         <Stat>
-                            <StatLabel color="gray.600" fontSize="sm">Membresías Este Mes</StatLabel>
-                            <StatNumber fontSize="3xl" color="purple.600">
-                                {estadisticasMembresias?.activas || 0}
+                            <StatLabel color="gray.600" fontSize="sm">Ingresos por Ventas</StatLabel>
+                            <StatNumber fontSize="2xl" color="purple.600">
+                                ${parseFloat(estadisticas?.ventas?.ingresos || 0).toLocaleString('es-CO')}
                             </StatNumber>
                             <StatHelpText>
-                                ${parseFloat(estadisticasMembresias?.ingresoActual || 0).toLocaleString('es-CO')}
-                            </StatHelpText>
-                            <StatHelpText>
-                                ${parseFloat(estadisticasMembresias?.ingresoActual || 0).toLocaleString('es-CO')}
+                                <Badge colorScheme="purple">
+                                    {estadisticas?.ventas?.total || 0} ventas
+                                </Badge>
                             </StatHelpText>
                         </Stat>
                     </CardBody>
@@ -632,12 +625,12 @@ export default function PagosTab() {
                 <Card boxShadow="md" borderLeft="4px" borderLeftColor="orange.400">
                     <CardBody>
                         <Stat>
-                            <StatLabel color="gray.600" fontSize="sm">Pendientes</StatLabel>
-                            <StatNumber fontSize="3xl" color="orange.600">
-                                {estadisticas?.pagos_pendientes || pagos.filter(p => p.estado === 'pendiente').length}
+                            <StatLabel color="gray.600" fontSize="sm">Hoy</StatLabel>
+                            <StatNumber fontSize="2xl" color="orange.600">
+                                {estadisticas?.transacciones_hoy || 0}
                             </StatNumber>
                             <StatHelpText>
-                                ${pagos.filter(p => p.estado === 'pendiente').reduce((sum, p) => sum + parseFloat(p.monto || 0), 0).toLocaleString('es-CO')}
+                                ${parseFloat(estadisticas?.ingresos_hoy || 0).toLocaleString('es-CO')}
                             </StatHelpText>
                         </Stat>
                     </CardBody>

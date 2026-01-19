@@ -201,6 +201,12 @@ export const reportesAPI = {
     getVentasPorProducto: () => apiRequest('/reportes/ventas-por-producto')
 }
 
+// ESTADÍSTICAS UNIFICADAS (Nuevo)
+export const estadisticasAPI = {
+    getIngresosUnificados: () => apiRequest('/estadisticas/ingresos'),
+    getIngresosMensuales: () => apiRequest('/reportes/ingresos-mensuales')
+}
+
 // FACTURAS
 export const facturasAPI = {
     getFacturas: (filtros = {}) => {
