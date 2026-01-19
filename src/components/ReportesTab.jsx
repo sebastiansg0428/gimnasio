@@ -99,7 +99,8 @@ export default function ReportesTab() {
                 ingresos: ingresos.value,
                 usuarios: nuevosUsuarios.value,
                 productos: topProductos.value,
-                rutinas: topRutinas.value
+                rutinas: topRutinas.value,
+                ventasUsuarios: ventasUsuarios.value
             })
 
             // Mapear ingresos (total -> total_ingresos)
@@ -132,13 +133,25 @@ export default function ReportesTab() {
                 total_asignaciones: parseInt(item.total_asignaciones || item.asignaciones || 0)
             }))
 
+            // Mapear ventas por usuario
+            const ventasUsuariosData = extractData(ventasUsuarios, 'ventas').map(item => ({
+                ...item,
+                nombre: item.nombre || item.usuario?.nombre || item.nombre_usuario,
+                apellido: item.apellido || item.usuario?.apellido || item.apellido_usuario,
+                email: item.email || item.usuario?.email || item.email_usuario || 'No disponible',
+                total_productos_comprados: parseInt(item.total_compras || item.total_productos || item.productos_comprados || item.total_productos_comprados || 0),
+                total_gastado: parseFloat(item.total_gastado || item.total || 0)
+            }))
+
+            console.log('👥 Ventas por usuario mapeadas:', ventasUsuariosData)
+
             setIngresosMensuales(ingresosData)
             setUsuariosNuevos(usuariosData)
             setProductosMasVendidos(productosData)
             setRutinasPopulares(rutinasData)
             setMembresiasPorVencer(extractData(membresias, 'membresias'))
             setUsuariosInactivos(extractData(inactivos, 'usuarios'))
-            setVentasPorUsuario(extractData(ventasUsuarios, 'ventas'))
+            setVentasPorUsuario(ventasUsuariosData)
             setVentasPorProducto(productosData) // Usar los mismos datos de productos
 
             toast({
@@ -536,7 +549,7 @@ export default function ReportesTab() {
                                 <CardHeader>
                                     <HStack>
                                         <FiAlertCircle size={24} color="#DD6B20" />
-                                        <Heading size="md">Membresías por Vencer (Próximos 7 días)</Heading>
+                                        <Heading size="md">Membresías por Vencer (Próximos 5 días)</Heading>
                                     </HStack>
                                 </CardHeader>
                                 <CardBody>
@@ -577,7 +590,7 @@ export default function ReportesTab() {
                                             <AlertIcon />
                                             <AlertTitle>¡Todo bien!</AlertTitle>
                                             <AlertDescription>
-                                                No hay membresías por vencer en los próximos 7 días
+                                                No hay membresías por vencer en los próximos 5 días
                                             </AlertDescription>
                                         </Alert>
                                     )}
