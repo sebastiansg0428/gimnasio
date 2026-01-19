@@ -47,9 +47,10 @@ import ReportesTab from '../components/ReportesTab'
 import FacturasTab from '../components/FacturasTab'
 import SesionesTab from '../components/SesionesTab'
 import RBACTab from '../components/RBACTab'
+import CarritoTab from '../components/CarritoTab'
 import { useNavigate } from 'react-router-dom'
 import { logout, getCurrentUser } from '../utils/auth'
-import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck, FiBox, FiTarget, FiTrendingUp, FiClock, FiFileText, FiBarChart2, FiShield } from 'react-icons/fi'
+import { FiMenu, FiHome, FiUsers, FiCalendar, FiDollarSign, FiActivity, FiBell, FiUser, FiUserCheck, FiBox, FiTarget, FiTrendingUp, FiClock, FiFileText, FiBarChart2, FiShield, FiShoppingCart } from 'react-icons/fi'
 import { useState, useEffect } from 'react'
 import { usuariosAPI, pagosAPI, dashboardAPI, reportesAPI } from '../services/api'
 
@@ -733,6 +734,18 @@ export default function Dashboard() {
                         Productos
                     </Button>
                     <Button
+                        leftIcon={<FiShoppingCart />}
+                        w="full"
+                        justifyContent="start"
+                        variant={currentTab === 'carrito' ? 'solid' : 'ghost'}
+                        colorScheme={currentTab === 'carrito' ? 'green' : 'gray'}
+                        onClick={() => setCurrentTab('carrito')}
+                        _hover={{ bg: currentTab === 'carrito' ? 'green.500' : 'gray.100', transform: 'translateX(4px)' }}
+                        transition="all 0.2s"
+                    >
+                        Carrito
+                    </Button>
+                    <Button
                         leftIcon={<FiUserCheck />}
                         w="full"
                         justifyContent="start"
@@ -816,6 +829,7 @@ export default function Dashboard() {
                     {currentTab === 'estadisticas' && <EstadisticasTab />}
                     {currentTab === 'entrenadores' && <EntrenadoresTab />}
                     {currentTab === 'productos' && <ProductosTab />}
+                    {currentTab === 'carrito' && <CarritoTab />}
                     {currentTab === 'sesiones' && <SesionesTab />}
                     {currentTab === 'reportes' && <ReportesTab />}
                     {currentTab === 'facturas' && <FacturasTab />}

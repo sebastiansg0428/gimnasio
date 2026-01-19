@@ -39,7 +39,7 @@ export async function registerUser({ name, email, password }) {
     const body = await handleResponse(res)
     // Store session with user and token
     const sessionData = {
-        user: body,
+        user: body.user || body,
         token: body.token || null
     }
     localStorage.setItem('rg_session', JSON.stringify(sessionData))
@@ -56,7 +56,7 @@ export async function loginUser({ email, password }) {
     const body = await handleResponse(res)
     // Store session with user and token
     const sessionData = {
-        user: body,
+        user: body.user || body,
         token: body.token || null
     }
     localStorage.setItem('rg_session', JSON.stringify(sessionData))

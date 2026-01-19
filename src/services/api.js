@@ -242,3 +242,19 @@ export const rbacAPI = {
     getEstadisticas: () => apiRequest('/rbac/estadisticas'),
     getMe: () => apiRequest('/me')
 }
+
+// VENTAS (Carrito de Compras)
+export const ventasAPI = {
+    getVentas: (filtros = {}) => {
+        const params = new URLSearchParams(filtros)
+        const query = params.toString()
+        return apiRequest(query ? `/ventas?${query}` : '/ventas')
+    },
+    getVenta: (id) => apiRequest(`/ventas/${id}`),
+    createVenta: (data) => apiRequest('/ventas', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    getHistorialUsuario: (usuarioId) => apiRequest(`/ventas/usuario/${usuarioId}`),
+    getEstadisticas: () => apiRequest('/ventas/estadisticas')
+}
