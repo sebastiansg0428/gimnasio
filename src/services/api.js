@@ -190,10 +190,12 @@ export const dashboardAPI = {
 // REPORTES
 export const reportesAPI = {
     getIngresosMensuales: () => apiRequest('/reportes/ingresos-mensuales'),
-    getUsuariosNuevos: () => apiRequest('/reportes/usuarios-nuevos-mensuales'),
+    getUsuariosNuevosMensuales: () => apiRequest('/reportes/usuarios-nuevos-mensuales'),
+    getUsuariosNuevos: () => apiRequest('/reportes/usuarios-nuevos-mensuales'), // Alias para compatibilidad
     getProductosMasVendidos: () => apiRequest('/reportes/productos-mas-vendidos'),
     getRutinasPopulares: () => apiRequest('/reportes/rutinas-populares'),
-    getMembresiasPorVencer: () => apiRequest('/reportes/usuarios-con-membresia-por-vencer'),
+    getUsuariosMembresiaPorVencer: () => apiRequest('/reportes/usuarios-con-membresia-por-vencer'),
+    getMembresiasPorVencer: () => apiRequest('/reportes/usuarios-con-membresia-por-vencer'), // Alias para compatibilidad
     getUsuariosInactivos: () => apiRequest('/reportes/usuarios-inactivos'),
     getVentasPorUsuario: () => apiRequest('/reportes/ventas-por-usuario'),
     getVentasPorProducto: () => apiRequest('/reportes/ventas-por-producto')

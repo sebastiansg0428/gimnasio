@@ -79,14 +79,67 @@ export default function ReportesTab() {
                 reportesAPI.getVentasPorProducto()
             ])
 
-            if (ingresos.status === 'fulfilled') setIngresosMensuales(ingresos.value || [])
-            if (nuevosUsuarios.status === 'fulfilled') setUsuariosNuevos(nuevosUsuarios.value || [])
-            if (topProductos.status === 'fulfilled') setProductosMasVendidos(topProductos.value || [])
-            if (topRutinas.status === 'fulfilled') setRutinasPopulares(topRutinas.value || [])
-            if (membresias.status === 'fulfilled') setMembresiasPorVencer(membresias.value || [])
-            if (inactivos.status === 'fulfilled') setUsuariosInactivos(inactivos.value || [])
-            if (ventasUsuarios.status === 'fulfilled') setVentasPorUsuario(ventasUsuarios.value || [])
-            if (ventasProductos.status === 'fulfilled') setVentasPorProducto(ventasProductos.value || [])
+            // Extraer datos con manejo de diferentes estructuras de respuesta
+            const extractData = (result, propertyName = null) => {
+                if (result.status !== 'fulfilled') return []
+                const value = result.value
+                
+                // Si se especifica un nombre de propiedad, intentar extraerlo
+                if (propertyName && value && value[propertyName]) {
+                    return Array.isArray(value[propertyName]) ? value[propertyName] : []
+                }
+                
+                // Manejar diferentes estructuras: array directo, {data: array}, {reportes: array}
+                return Array.isArray(value) ? value : 
+                       Array.isArray(value?.data) ? value.data :
+                       Array.isArray(value?.reportes) ? value.reportes : []
+            }
+
+            console.log('📊 Datos de reportes recibidos:', {
+                ingresos: ingresos.value,
+                usuarios: nuevosUsuarios.value,
+                productos: topProductos.value,
+                rutinas: topRutinas.value
+            })
+
+            // Mapear ingresos (total -> total_ingresos)
+            const ingresosData = extractData(ingresos, 'ingresos').map(item => ({
+                ...item,
+                mes: item.nombre_mes || item.mes,
+                total_ingresos: parseFloat(item.total || item.total_ingresos || 0)
+            }))
+
+            // Mapear usuarios (total -> total_usuarios)
+            const usuariosData = extractData(nuevosUsuarios, 'usuarios').map(item => ({
+                ...item,
+                mes: item.nombre_mes || item.mes,
+                total_usuarios: parseInt(item.total || item.total_usuarios || 0)
+            }))
+
+            // Mapear productos (nombre -> producto_nombre, cantidad_vendida -> total_vendido)
+            const productosData = extractData(topProductos, 'productos').map(item => ({
+                ...item,
+                nombre: item.nombre || item.producto_nombre, // Mantener 'nombre' para los gráficos
+                producto_nombre: item.nombre || item.producto_nombre,
+                total_vendido: parseInt(item.numero_ventas || item.unidades_vendidas || item.cantidad_vendida || item.total_vendido || 0),
+                total_ingresos: parseFloat(item.ingresos_totales || item.total_ventas || item.total_ingresos || 0)
+            }))
+
+            // Mapear rutinas
+            const rutinasData = extractData(topRutinas, 'rutinas').map(item => ({
+                ...item,
+                nombre_rutina: item.nombre || item.nombre_rutina,
+                total_asignaciones: parseInt(item.total_asignaciones || item.asignaciones || 0)
+            }))
+
+            setIngresosMensuales(ingresosData)
+            setUsuariosNuevos(usuariosData)
+            setProductosMasVendidos(productosData)
+            setRutinasPopulares(rutinasData)
+            setMembresiasPorVencer(extractData(membresias, 'membresias'))
+            setUsuariosInactivos(extractData(inactivos, 'usuarios'))
+            setVentasPorUsuario(extractData(ventasUsuarios, 'ventas'))
+            setVentasPorProducto(productosData) // Usar los mismos datos de productos
 
             toast({
                 title: '✅ Reportes cargados',
@@ -257,19 +310,34 @@ export default function ReportesTab() {
                                             <ResponsiveContainer width="100%" height={300}>
                                                 <PieChart>
                                                 <Pie
-                                                    data={ventasPorProducto.slice(0, 5)}
+                                                    data={ventasPorProducto.slice(0, 6)}
                                                     dataKey="total_vendido"
                                                     nameKey="nombre"
                                                     cx="50%"
                                                     cy="50%"
-                                                    outerRadius={80}
-                                                    label={(entry) => `${entry.nombre} (${entry.total_vendido})`}
+                                                    outerRadius={90}
+                                                    label={({nombre, total_vendido, percent}) => 
+                                                        `${nombre}: ${total_vendido} (${(percent * 100).toFixed(0)}%)`
+                                                    }
+                                                    labelLine={true}
                                                 >
-                                                    {ventasPorProducto.slice(0, 5).map((entry, index) => (
+                                                    {ventasPorProducto.slice(0, 6).map((entry, index) => (
                                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                                     ))}
                                                 </Pie>
-                                                <Tooltip />
+                                                <Tooltip 
+                                                    formatter={(value, name) => [
+                                                        `${value} unidades`,
+                                                        name
+                                                    ]}
+                                                />
+                                                <Legend 
+                                                    verticalAlign="bottom" 
+                                                    height={36}
+                                                    formatter={(value, entry) => 
+                                                        `${value} (${entry.payload.total_vendido})`
+                                                    }
+                                                />
                                             </PieChart>
                                         </ResponsiveContainer>
                                         </Box>

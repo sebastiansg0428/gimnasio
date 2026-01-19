@@ -165,7 +165,7 @@ function HomeTab() {
                 
                 // Cargar reportes adicionales en paralelo
                 const [membresiasVencer, usuariosInactivos, ingresos] = await Promise.all([
-                    reportesAPI.getMembresiasPorVencer().catch(() => []),
+                    reportesAPI.getUsuariosMembresiaPorVencer().catch(() => []),
                     reportesAPI.getUsuariosInactivos().catch(() => []),
                     reportesAPI.getIngresosMensuales().catch(() => [])
                 ])
